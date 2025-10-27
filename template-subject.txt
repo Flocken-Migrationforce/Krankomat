@@ -1,0 +1,1 @@
+Krankmeldung EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]

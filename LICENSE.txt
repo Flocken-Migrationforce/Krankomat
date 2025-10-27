@@ -1,0 +1,23 @@
+Copyright (c) 2025 Fabian Flocken
+
+Alle Rechte vorbehalten.
+
+Diese Software wird kostenlos zur Verfügung gestellt und darf von jedermann genutzt werden.
+
+Diese Software darf ausschließlich von Laurin Bennet Jaetschmann, Marvin Junk, Cederic Langpaap und Fabian Flocken modifiziert und weiterentwickelt werden. Andere Nutzer erhalten nur das Recht zur unmodifizierten Nutzung der Software.
+
+Es ist ausdrücklich verboten, dass andere Nutzer als die genannten Mitwirkenden
+- den Quellcode oder die Software zu modifizieren,
+- die Software weiterzuverbreiten,
+- die Software zu kommerziellen Zwecken zu nutzen oder zu verkaufen,
+- oder abgeleitete Werke zu erstellen,
+
+ohne vorherige schriftliche Zustimmung des Urheberrechtsinhabers.
+
+Die Software wird ohne jegliche ausdrückliche oder stillschweigende Gewährleistung bereitgestellt.
+Der Nutzer muss bei jeder Nutzung oder Verbreitung der Software den Lizenzgeber und die benannten Mitwirkenden als Urheber nennen.
+
+Durch Nutzung der Software akzeptieren Sie diese Bedingungen.
+
+
+(c) 21.10.2025 Fabian Flocken

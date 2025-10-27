@@ -1,0 +1,21 @@
+Sehr geehrte {empfänger},
+
+hiermit melde ich mich krank für heute, den {Datum}.
+
+Studiengruppe / Jahrgang: EGov25
+Name: {Nachname}
+Vorname: {Vornamen}
+Krankmeldung:{krankmeldung}
+Gesundmeldung:{gesundmeldung}
+Erster Krankheitstag:{DatumKrank}
+Letzter Krankheitstag:{DatumGesund}
+Attest vorhanden ja/nein:{attest}
+Attest über eAU: nein {eAU=attest&GKV}
+(freiwillig gesetzlich Versicherte RSA/RIA, AzVA, Soz. Arbeit, E-Government)
+Prüfungstag/ Klausur/ Leistungsnachweis ja/nein:{prüfungstag}
+Unfall (auch privat) ja/nein:{unfall}
+Bemerkung / voraussichtliche Dauer:{bemerkung}
+
+
+Mit freundlichen Grüßen
+{Vornamen} {Nachname}

@@ -1,0 +1,4 @@
+# fast alle Module in Standard-Bib drin.
+pywin32==306 # um eine neue Outlook-E-Mail als Entwurf mit dem Text zu erstellen
+## python -m pip install pywin32
+# numpy==1.24.2

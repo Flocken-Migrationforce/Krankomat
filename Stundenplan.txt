@@ -1,0 +1,5 @@
+Montag;Projektmanagement,Sozialwissenschaftliche Schlüsselkompetenzen,Grundlagen Informatik
+Dienstag;Grundlagen E-Government (E-Gov1),Allgemeines Verwaltungsrecht (AVR1),Grundlagen Informatik
+Mittwoch;
+Donnerstag;
+Freitag;
