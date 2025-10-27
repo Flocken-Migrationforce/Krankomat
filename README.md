@@ -20,6 +20,19 @@ Das finale Abschicken hast du als Nutzer*in immer noch selbst in der Hand.
 
 
  <br>
+
+ <br>
+
+ <br>
+
+ Aktuell funktioniert der Code nur mit einer weiteren vorläufigen Datenbank-Datei, die aus Datenschutzgründen (DSGVO Art. 6) hier im WWW nicht veröffentlicht werden kann.
+ Eine datenschutzkonforme Lösung ist in Arbeit.
+ 
+ Der Krankomaten befindet sich aktuell in der Entwicklungsphase und ist noch nicht öffentlich verfügbar.
+ Eine nicht-öffentliche Version dieses Repositorys existiert aktuell und ist aus Datenschutzgründen exklusiv Interessierten und Entwicklern aus dem E-Gov-25-Kurs vorbehalten.  
+ Bei Interesse gerne Zugang anfragen.
+ 
+ <br>
  <br>
  
 #### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Liebe E-Govs-'25,
