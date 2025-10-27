@@ -32,6 +32,9 @@ Das finale Abschicken hast du als Nutzer*in immer noch selbst in der Hand.
  Eine nicht-öffentliche Version dieses Repositorys existiert aktuell und ist aus Datenschutzgründen exklusiv Interessierten und Entwicklern aus dem E-Gov-25-Kurs vorbehalten.  
  Bei Interesse gerne Zugang anfragen.
  
+ Der Plan ist, dass diese App als OpenSource-Projekt auf Windows, macOS, Android und iOS verfügbar gemacht wird.  
+ Kommerzielle Zwecke werden zu diesem Zeitpunkt nicht verfolgt.
+ 
  <br>
  <br>
  
@@ -48,3 +51,4 @@ Habt ihr ein Feature fertig entwickelt und getesten, binden wir den über ein Pu
 
 Entwickelt an der HAW Hamburg von Studierenden im Studiengang E-Government 2025.
 Theoretische Beschreibung der Softwareprojekt-Struktur erfolgte als Hausaufgabe in der Vorlesung "Grundlagen der Informatik" im 1. Semester.
+2025
