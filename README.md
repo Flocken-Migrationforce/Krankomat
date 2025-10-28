@@ -49,6 +49,6 @@ Habt ihr ein Feature fertig entwickelt und getesten, binden wir den über ein Pu
 
 ---
 
-Entwickelt an der HAW Hamburg von Studierenden im Studiengang E-Government 2025.
-Theoretische Beschreibung der Softwareprojekt-Struktur erfolgte als Hausaufgabe in der Vorlesung "Grundlagen der Informatik" im 1. Semester.
+Entwickelt während der Freizeit von Studierenden des Studiengangs E-Government 2025 an der HAW Hamburg.  
+Theoretische Beschreibung der Softwareprojekt-Struktur erfolgte als Hausaufgabe in der Vorlesung "Grundlagen der Informatik" im 1. Semester.  
 2025
