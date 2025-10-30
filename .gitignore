@@ -1,2 +1,7 @@
 /venv/
 .idea/
+Krankomat.db/
+*.db/
+db.py/
+db.py
+Krankomat.db
