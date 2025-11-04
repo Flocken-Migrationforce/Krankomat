@@ -70,17 +70,12 @@
         lastName: 'Mustermann',
         studentId: '1234567',
         email: 'max.mustermann@example.com',
-        studyProgram: 'EGOV',
+        studyProgram: 'E-Government',
       };
 
       const RECIPIENTS_DATA_STRUCTURE = [
-        { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'ZPD / Ausbildungsleitung', isSelected: true },
-        { id: 2, anrede: 'Sehr geehrte Frau Prof. Dr. Schmidt', module: 'IT-Projektmanagement', isSelected: false },
-        { id: 3, anrede: 'Sehr geehrter Herr Dr. Meier', module: 'Grundlagen der BWL', isSelected: false },
-        { id: 4, anrede: 'Sehr geehrte Damen und Herren', module: 'Berufspraxisstelle', isSelected: false },
-        { id: 5, anrede: 'Sehr geehrte Frau Müller', module: 'Datenbanken', isSelected: false },
-        { id: 6, anrede: 'Sehr geehrter Herr Weber', module: 'Software Engineering', isSelected: false },
-        { id: 7, anrede: 'Sehr geehrtes Prüfungsamt-Team', module: 'HAW-Prüfungsamt', isSelected: false }
+        { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'ZPD (Zentrum für Personaldienste)', isSelected: true },
+        { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'Verwaltungsverfahren und Verwaltungshandel', isSelected: true },
       ];
 
       const TIMETABLE_DATA = [
@@ -91,7 +86,7 @@
           { day: 'Freitag', module: 'IT-Projektmanagement' },
       ];
 
-      const EMAIL_SUBJECT_TEMPLATE = "{art} EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]";
+      const EMAIL_SUBJECT_TEMPLATE = "{art} E-Gov 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]";
       
       // --- COMPONENTS ---
       const Header = () => (
@@ -104,12 +99,39 @@
                   Krankomat <span className="text-indigo-600">Modern</span>
                 </h1>
                 <p className="text-slate-500 mt-1">
-                  Schnell und einfach eine Krank- oder Gesundmeldung per E-Mail vorbereiten.
-                </p>
+
+Das Krankomat-Entwicklerteam:
+
+Fabian Flocken, 
+Laurin Bennet Jaetschmann, 
+Marvin Junk und
+Cederic Langpaap
+</p>
               </div>
             </div>
           </div>
         </header>
+      );
+
+      const Disclaimer = ({ onDismiss }) => (
+        <div className="mb-8 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg shadow-md" role="alert">
+          <div className="flex">
+            <div className="py-1">
+              <i className="fa-solid fa-triangle-exclamation text-amber-500 mr-4 text-2xl"></i>
+            </div>
+            <div>
+              <p className="font-bold text-amber-800">Hinweis</p>
+              <p className="text-sm text-amber-700">
+                Dieses Werkzeug ist eine E-Mail Schreibhilfe. Alle Daten bleiben auf dem Gerät. 
+              </p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button onClick={onDismiss} className="text-amber-500 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 rounded-full h-8 w-8 flex items-center justify-center transition-colors" aria-label="Disclaimer ausblenden">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        </div>
       );
 
       const Card = ({ title, children, className }) => (
@@ -176,7 +198,7 @@
               <FormField label="Vorname" id="firstName" value={userData.firstName} onChange={(e) => handleUserChange('firstName', e.target.value)} />
               <FormField label="Nachname" id="lastName" value={userData.lastName} onChange={(e) => handleUserChange('lastName', e.target.value)} />
               <FormField label="Matrikelnummer" id="studentId" value={userData.studentId} onChange={(e) => handleUserChange('studentId', e.target.value)} />
-              <FormField label="Absender-E-Mail" id="email" type="email" value={userData.email} onChange={(e) => handleUserChange('email', e.target.value)} />
+              {/* <FormField label="Absender-E-Mail" id="email" type="email" value={userData.email} onChange={(e) => handleUserChange('email', e.target.value)} /> */}
             </div>
             <div className="border-t border-slate-200 mt-4 pt-4 space-y-4">
               <div className="p-1 flex bg-slate-100 rounded-full">
@@ -223,7 +245,17 @@
         <Card title="Heute verpasse ich...">
           <Checkbox id="lecture" label="Vorlesungszeit" checked={reasons.lecture} onChange={() => onToggle('lecture')} />
           <Checkbox id="internship" label="Berufspraxis" checked={reasons.internship} onChange={() => onToggle('internship')} />
-          <Checkbox id="exam" label="Prüfungsleistung / Klausur" checked={reasons.exam} onChange={() => onToggle('exam')} />
+          <div>
+            <Checkbox id="exam" label="Prüfungsleistung / Klausur" checked={reasons.exam} onChange={() => onToggle('exam')} />
+            {reasons.exam && (
+              <div className="mt-3 ml-8 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 flex items-start space-x-3 transition-all duration-300">
+                <i className="fa-solid fa-circle-info text-blue-500 mt-1 flex-shrink-0"></i>
+                <p>
+                  <strong>Wichtiger Hinweis:</strong> Diese E-Mail ersetzt nicht die offizielle Prüfungsunfähigkeitsbescheinigung, die beim Prüfungsamt eingereicht werden muss.
+                </p>
+              </div>
+            )}
+          </div>
           <Checkbox id="partialDay" label="Rest des Tages (war schon da)" checked={reasons.partialDay} onChange={() => onToggle('partialDay')} />
         </Card>
       );
@@ -265,10 +297,6 @@
               </div>
             ))}
           </div>
-          <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800 flex items-start space-x-3">
-            <i className="fa-solid fa-shield-halved text-indigo-500 mt-1"></i>
-            <p><strong className="font-semibold">Datenschutzhinweis:</strong> Ihre Daten werden nur lokal in Ihrem Browser gespeichert und niemals an einen Server gesendet.</p>
-          </div>
         </Card>
       );
       
@@ -308,12 +336,29 @@
         </svg>
       );
 
-      const PreviewPanel = ({ email }) => {
+      const PreviewPanel = ({ email, editedBody, setEditedBody }) => {
+        const { subject, to } = email;
+
+        const toList = to ? to.split(';').map(e => e.trim()).filter(Boolean) : [];
+        const toMailtoValue = toList.join(',');
+
+        const finalOutlookHref = toList.length > 0 ? `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(editedBody)}` : null;
+        const finalMailtoHref = toList.length > 0 ? `mailto:${toMailtoValue}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(editedBody)}` : null;
+
         const handleOpenOutlook = () => {
-          if (email && email.outlookHref) {
-            window.open(email.outlookHref, '_blank', 'noopener,noreferrer');
+          if (finalOutlookHref) {
+            window.open(finalOutlookHref, '_blank', 'noopener,noreferrer');
           }
         };
+        
+        const [bodyCopied, setBodyCopied] = useState(false);
+        const handleCopyBody = useCallback(() => {
+          if (!editedBody) return;
+          copyToClipboard(editedBody, () => {
+            setBodyCopied(true);
+            setTimeout(() => setBodyCopied(false), 2000);
+          });
+        }, [editedBody]);
 
         return (
           <div className="bg-white rounded-xl shadow-lg sticky top-8">
@@ -325,11 +370,14 @@
                 <div>
                   <label className="text-sm font-semibold text-slate-600">Nachricht</label>
                   <div className="mt-1 relative group">
-                    <div className="p-3 bg-slate-100 rounded-lg text-sm text-slate-800 whitespace-pre-wrap break-words h-64 overflow-y-auto border border-slate-200 font-mono">
-                      {email.body}
-                    </div>
-                    <button onClick={() => copyToClipboard(email.body, () => {})} title="Nachricht kopieren" className="absolute top-2 right-2 p-2 rounded-md bg-white/50 text-slate-500 hover:bg-white hover:text-indigo-600 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label="Copy message">
-                      <i className="fa-solid fa-copy"></i>
+                    <textarea 
+                      value={editedBody}
+                      onChange={(e) => setEditedBody(e.target.value)}
+                      className="w-full p-3 bg-slate-100 rounded-lg text-sm text-slate-800 whitespace-pre-wrap break-words h-64 overflow-y-auto border border-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
+                      aria-label="Email message body"
+                    />
+                    <button onClick={handleCopyBody} title="Nachricht kopieren" className="absolute top-2 right-2 p-2 rounded-md bg-white/50 text-slate-500 hover:bg-white hover:text-indigo-600 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label="Copy message">
+                      <i className={`fa-solid ${bodyCopied ? 'fa-check text-green-500' : 'fa-copy'}`}></i>
                     </button>
                   </div>
                 </div>
@@ -338,25 +386,25 @@
             <div className="bg-slate-50 p-4 border-t border-slate-200 rounded-b-xl">
               <button 
                 onClick={handleOpenOutlook} 
-                disabled={!email.outlookHref}
+                disabled={!finalOutlookHref}
                 className="w-full inline-flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:bg-indigo-400 disabled:cursor-not-allowed">
                 <i className="fa-solid fa-paper-plane h-5 w-5 mr-3"></i>
                 E-Mail in Outlook öffnen
               </button>
               <a
-                href={email.mailtoHref || undefined}
-                onClick={(e) => { if (!email.mailtoHref) e.preventDefault(); }}
+                href={finalMailtoHref || undefined}
+                onClick={(e) => { if (!finalMailtoHref) e.preventDefault(); }}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-disabled={!email.mailtoHref}
+                aria-disabled={!finalMailtoHref}
                 className={`mt-3 w-full inline-flex items-center justify-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white transition-colors ${
-                  email.mailtoHref
+                  finalMailtoHref
                     ? 'hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                     : 'opacity-50 cursor-not-allowed'
                 }`}
               >
                 <AndroidIcon />
-                Öffnen mit Mail-App (z.B. Android)
+                Öffnen mit Standard Mail)
               </a>
             </div>
           </div>
@@ -364,35 +412,88 @@
       };
 
       // --- APP ---
+      const loadJSONState = (key, defaultValue) => {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (error) {
+            console.error(`Failed to load state for ${key}`, error);
+            return defaultValue;
+        }
+      };
+
+      const getInitialUserData = () => {
+        try {
+          const savedUserData = localStorage.getItem('krankomat_userData');
+          return savedUserData ? { ...DEFAULT_USER_DATA, ...JSON.parse(savedUserData) } : DEFAULT_USER_DATA;
+        } catch (error) {
+          console.error("Failed to load user data from localStorage", error);
+          return DEFAULT_USER_DATA;
+        }
+      };
+      
+      const getInitialRecipients = () => {
+        try {
+          const baseRecipients = RECIPIENTS_DATA_STRUCTURE.map(r => ({ ...r, email: '' }));
+          const savedRecipients = localStorage.getItem('krankomat_recipients');
+          if (savedRecipients) {
+            const parsed = JSON.parse(savedRecipients);
+            const merged = baseRecipients.map(base => {
+              const saved = parsed.find(sr => sr.id === base.id);
+              return { ...base, ...saved };
+            });
+            return merged;
+          }
+          return baseRecipients;
+        } catch (error) {
+          console.error("Failed to load recipients from localStorage", error);
+          return RECIPIENTS_DATA_STRUCTURE.map(r => ({ ...r, email: '' }));
+        }
+      };
+
       function App() {
-        const [userData, setUserData] = useState(DEFAULT_USER_DATA);
-        const [sicknessStartDate, setSicknessStartDate] = useState(todayFormatted());
-        const [sicknessEndDate, setSicknessEndDate] = useState('');
-        const [absenceReasons, setAbsenceReasons] = useState({ lecture: true, internship: false, exam: false, partialDay: false });
-        const [recipients, setRecipients] = useState([]);
-        const [details, setDetails] = useState({ isAccident: false, isGKV: false, hasAttest: false, hasEAU: false, comments: '' });
+        const [userData, setUserData] = useState(getInitialUserData);
+        const [sicknessStartDate, setSicknessStartDate] = useState(() => loadJSONState('krankomat_sicknessStartDate', todayFormatted()));
+        const [sicknessEndDate, setSicknessEndDate] = useState(() => loadJSONState('krankomat_sicknessEndDate', ''));
+        const [absenceReasons, setAbsenceReasons] = useState(() => {
+            const defaults = { lecture: true, internship: false, exam: false, partialDay: false };
+            return { ...defaults, ...loadJSONState('krankomat_absenceReasons', {}) };
+        });
+        const [recipients, setRecipients] = useState(getInitialRecipients);
+        const [details, setDetails] = useState(() => {
+            const defaults = { isAccident: false, isGKV: false, hasAttest: false, hasEAU: false, comments: '' };
+            return { ...defaults, ...loadJSONState('krankomat_details', {}) };
+        });
         const [saveStatus, setSaveStatus] = useState('idle');
+        const [disclaimerVisible, setDisclaimerVisible] = useState(false);
+        const [editedBody, setEditedBody] = useState('');
         
         useEffect(() => {
           try {
-            const savedUserData = localStorage.getItem('krankomat_userData');
-            if (savedUserData) setUserData(JSON.parse(savedUserData));
-            const savedRecipients = localStorage.getItem('krankomat_recipients');
-            const baseRecipients = RECIPIENTS_DATA_STRUCTURE.map(r => ({ ...r, email: '' }));
-            if (savedRecipients) {
-              const parsed = JSON.parse(savedRecipients);
-              const merged = baseRecipients.map(base => ({ ...base, ...parsed.find(sr => sr.id === base.id) }));
-              setRecipients(merged);
-            } else {
-              setRecipients(baseRecipients);
+            if (localStorage.getItem('krankomat_disclaimerDismissed') !== 'true') {
+              setDisclaimerVisible(true);
             }
           } catch (error) {
-            console.error("Failed to load data from localStorage", error);
-            setRecipients(RECIPIENTS_DATA_STRUCTURE.map(r => ({ ...r, email: '' })));
+            console.error("Could not access localStorage", error);
+            setDisclaimerVisible(true); // Show it if localStorage fails
           }
         }, []);
 
+        const handleDismissDisclaimer = useCallback(() => {
+          try {
+            localStorage.setItem('krankomat_disclaimerDismissed', 'true');
+            setDisclaimerVisible(false);
+          } catch (error) {
+            console.error("Could not write to localStorage", error);
+            setDisclaimerVisible(false); // Still hide it
+          }
+        }, []);
+        
         useEffect(() => { localStorage.setItem('krankomat_userData', JSON.stringify(userData)); }, [userData]);
+        useEffect(() => { localStorage.setItem('krankomat_sicknessStartDate', JSON.stringify(sicknessStartDate)); }, [sicknessStartDate]);
+        useEffect(() => { localStorage.setItem('krankomat_sicknessEndDate', JSON.stringify(sicknessEndDate)); }, [sicknessEndDate]);
+        useEffect(() => { localStorage.setItem('krankomat_absenceReasons', JSON.stringify(absenceReasons)); }, [absenceReasons]);
+        useEffect(() => { localStorage.setItem('krankomat_details', JSON.stringify(details)); }, [details]);
         useEffect(() => { if (recipients.length > 0) localStorage.setItem('krankomat_recipients', JSON.stringify(recipients)); }, [recipients]);
 
         const noticeType = sicknessEndDate ? 'Gesundmeldung' : 'Krankmeldung';
@@ -413,18 +514,38 @@
           try {
             localStorage.setItem('krankomat_userData', JSON.stringify(userData));
             localStorage.setItem('krankomat_recipients', JSON.stringify(recipients));
+            localStorage.setItem('krankomat_sicknessStartDate', JSON.stringify(sicknessStartDate));
+            localStorage.setItem('krankomat_sicknessEndDate', JSON.stringify(sicknessEndDate));
+            localStorage.setItem('krankomat_absenceReasons', JSON.stringify(absenceReasons));
+            localStorage.setItem('krankomat_details', JSON.stringify(details));
             setSaveStatus('saved');
             setTimeout(() => setSaveStatus('idle'), 2000);
           } catch (error) {
             console.error("Manual save to localStorage failed", error);
           }
-        }, [userData, recipients]);
+        }, [userData, recipients, sicknessStartDate, sicknessEndDate, absenceReasons, details]);
 
         const generatedEmail = useMemo(() => {
           const selectedRecipients = recipients.filter(r => r.isSelected);
           const anreden = [...new Set(selectedRecipients.map(r => r.anrede.trim()))];
           const anredeText = selectedRecipients.length === 0 ? 'Sehr geehrte Damen und Herren,' : `${anreden.join(',\n')},`;
           
+          let abwesenheitsgrund = '';
+          if (noticeType === 'Krankmeldung') {
+              if (absenceReasons.partialDay) {
+                  abwesenheitsgrund = 'Hiermit melde ich mich für den Rest des heutigen Tages krank.';
+              } else {
+                  const verpasst = [];
+                  if (absenceReasons.lecture) verpasst.push('der Vorlesungszeit');
+                  if (absenceReasons.internship) verpasst.push('der Berufspraxis');
+                  if (absenceReasons.exam) verpasst.push('einer Prüfungsleistung');
+
+                  if (verpasst.length > 0) {
+                      abwesenheitsgrund = `Aufgrund meiner Krankheit kann ich heute nicht an ${verpasst.join(' sowie ')} teilnehmen.`;
+                  }
+              }
+          }
+
           const bodyTemplate = noticeType === 'Gesundmeldung' ? 
 `{anrede}
 
@@ -442,6 +563,7 @@ Mit freundlichen Grüßen
 `{anrede}
 
 hiermit melde ich mich für den {Datum} krank.
+{abwesenheitsgrund}
 {dauermeldung}
 
 Name: {Vornamen} {Nachname}
@@ -460,28 +582,30 @@ Mit freundlichen Grüßen
             attest: details.hasAttest ? 'ja' : 'nein', eAU: details.hasEAU ? 'ja' : 'nein',
             prüfungstag: absenceReasons.exam ? 'ja' : 'nein',
             dauermeldung: sicknessEndDate ? `Ich bin voraussichtlich bis einschließlich ${sicknessEndDate} krank.` : '',
+            abwesenheitsgrund: abwesenheitsgrund,
           };
           
-          const body = renderTemplate(bodyTemplate.trim(), context).trim();
+          let body = renderTemplate(bodyTemplate.trim(), context);
+          body = body.replace(/^\s*[\r\n]/gm, ''); // Removes empty lines
+
           const subject = renderTemplate(EMAIL_SUBJECT_TEMPLATE, context);
           const toList = selectedRecipients.map(r => r.email).filter(Boolean).filter(e => e.trim() !== '');
           
-          // For Outlook Web link & display - uses semicolon separation
           const toValue = toList.join('; ');
-          const outlookHref = toList.length > 0 ? `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(toValue)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : null;
-
-          // For standard mailto link (Android) - uses comma separation
-          const toMailtoValue = toList.join(',');
-          const mailtoHref = toList.length > 0 ? `mailto:${toMailtoValue}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : null;
-
-          return { subject, body, to: toValue, outlookHref, mailtoHref };
+          
+          return { subject, body: body.trim(), to: toValue };
         }, [userData, noticeType, sicknessStartDate, sicknessEndDate, absenceReasons, recipients, details]);
+
+        useEffect(() => {
+          setEditedBody(generatedEmail.body);
+        }, [generatedEmail.body]);
 
         return (
           <div className="bg-slate-100 min-h-screen text-slate-800 font-sans">
             <Header />
             <main className="container mx-auto p-4 lg:p-8">
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+              {disclaimerVisible && <Disclaimer onDismiss={handleDismissDisclaimer} />}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                 <div className="lg:col-span-3 space-y-8">
                   <UserInfoPanel 
                     userData={userData} 
@@ -500,7 +624,7 @@ Mit freundlichen Grüßen
                   <RecipientsPanel recipients={recipients} onToggle={handleRecipientToggle} onEmailChange={handleRecipientEmailChange} />
                 </div>
                 <div className="lg:col-span-2">
-                  <PreviewPanel email={generatedEmail} />
+                  <PreviewPanel email={generatedEmail} editedBody={editedBody} setEditedBody={setEditedBody} />
                 </div>
               </div>
             </main>
@@ -512,6 +636,6 @@ Mit freundlichen Grüßen
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(<React.StrictMode><App /></React.StrictMode>);
     </script>
-  <script type="module" src="/index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
