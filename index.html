@@ -270,13 +270,13 @@ Cederic Langpaap
           
         return (
           <Card title="Details & Optionen">
-            <div className="grid grid-cols-2 gap-4">
-              <Checkbox id="accident" label="Unfall" checked={details.isAccident} onChange={() => onChange('isAccident', !details.isAccident)} />
-              <Checkbox id="gkv" label="GKV" checked={details.isGKV} onChange={() => onChange('isGKV', !details.isGKV)} />
-              <Checkbox id="attest" label="Attest" checked={details.hasAttest} onChange={() => onChange('hasAttest', !details.hasAttest)} />
-              <Checkbox id="eau" label="eAU" checked={details.hasEAU} onChange={() => onChange('hasEAU', !details.hasEAU)} />
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 flex items-start space-x-3">
+              <i className="fa-solid fa-paperclip text-blue-500 mt-1 flex-shrink-0"></i>
+              <p>
+                <strong>Anhänge:</strong> Dokumente wie eine eAU oder ein Attest erst in Outlook anhängen.
+              </p>
             </div>
-            <div className="pt-4">
+            <div>
               <label htmlFor="comments" className="mb-1.5 text-sm font-medium text-slate-600">Bemerkung / voraussichtliche Dauer</label>
               <textarea id="comments" value={details.comments} onChange={(e) => onChange('comments', e.target.value)} rows={3} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200" />
               <div className="mt-2 space-y-2">
@@ -461,8 +461,10 @@ Cederic Langpaap
         });
         const [recipients, setRecipients] = useState(getInitialRecipients);
         const [details, setDetails] = useState(() => {
-            const defaults = { isAccident: false, isGKV: false, hasAttest: false, hasEAU: false, comments: '' };
-            return { ...defaults, ...loadJSONState('krankomat_details', {}) };
+            const loadedDetails = loadJSONState('krankomat_details', {});
+            return {
+                comments: loadedDetails.comments || ''
+            };
         });
         const [saveStatus, setSaveStatus] = useState('idle');
         const [disclaimerVisible, setDisclaimerVisible] = useState(false);
@@ -578,8 +580,7 @@ Mit freundlichen Grüßen
           const context = {
             Vornamen: userData.firstName, Nachname: userData.lastName, Matrikelnummer: userData.studentId,
             Datum: sicknessStartDate, Datum2: sicknessEndDate, art: noticeType, studiengang: userData.studyProgram,
-            anrede: anredeText, bemerkung: details.comments, unfall: details.isAccident ? 'ja' : 'nein',
-            attest: details.hasAttest ? 'ja' : 'nein', eAU: details.hasEAU ? 'ja' : 'nein',
+            anrede: anredeText, bemerkung: details.comments,
             prüfungstag: absenceReasons.exam ? 'ja' : 'nein',
             dauermeldung: sicknessEndDate ? `Ich bin voraussichtlich bis einschließlich ${sicknessEndDate} krank.` : '',
             abwesenheitsgrund: abwesenheitsgrund,
