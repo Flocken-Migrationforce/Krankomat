@@ -1,5 +1,7 @@
 /venv/
 .idea/
+~$*
+*.ppt*
 Krankomat.db/
 *.db/
 db.py/
