@@ -1,9 +1,11 @@
-import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, filedialog
+import tkinter as tk # für GUI
+from tkinter import ttk, messagebox, scrolledtext, filedialog # für GUI bestimmte Funktionen
+from PIL import Image, ImageTk # für Bilder und Icons
 import datetime
 import win32com.client as win32
 import os
 import csv
+import sqlite3
 
 # ----------------- Dateipfade / User-Config Dateien -----------------
 TEMPLATE_BODY_PATH = "template.txt"
@@ -22,8 +24,10 @@ def load_file_text(path, default=None):
         return default
     with open(path, "r", encoding="utf-8") as f:
         return f.read().strip()
+
+
 def load_email_from_berufspraxis_txt():
-    text = load_file_text("Berufspraxis.txt", default="")
+    text = load_file_text("Berufspraxis_text.txt", default="")
     for line in text.splitlines():
         if line.strip() and ";" in line:
             parts = line.split(";")
@@ -122,8 +126,8 @@ class KrankmeldungApp(tk.Tk):
         self.template_subject = load_file_text(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]")
 
         # ZPD als Standard-Adressat:
-        self.var_zpd = tk.BooleanVar(value=True)
-        self.var_pruef = tk.BooleanVar(value=False)
+        # self.var_zpd = tk.BooleanVar(value=True)
+        # self.var_pruef = tk.BooleanVar(value=False)
 
         emp_rows = read_empfaenger(EMPFAENGER_PATH)
 
@@ -139,7 +143,7 @@ class KrankmeldungApp(tk.Tk):
                 "modul": modul,
                 "email": email
             })
-        self.gkv_var = tk.BooleanVar()
+        # self.gkv_var = tk.BooleanVar()
         self.matrikel_var = tk.StringVar(value=self.user_matrikel)
 
         self._build_top_panel()
@@ -168,9 +172,9 @@ class KrankmeldungApp(tk.Tk):
             self.left_vars["Vorlesungszeit."].set(True)
 
         # Center Panel: Erste ZPD Checkbox ankreuzen (z.B. über greeting_items)
-        zpd_anrede = self.greeting_items[0]["anrede"] if self.greeting_items else None
-        if zpd_anrede and zpd_anrede in self.prof_vars:
-            self.prof_vars[zpd_anrede].set(True)
+        # zpd_anrede = self.greeting_items[0]["anrede"] if self.greeting_items else None
+        # if zpd_anrede and zpd_anrede in self.prof_vars:
+        #     self.prof_vars[zpd_anrede].set(True)
 
         # Datum Krankheitsbeginn auf heute setzen
         heute = datetime.datetime.now().strftime("%d.%m.%Y")
@@ -180,6 +184,66 @@ class KrankmeldungApp(tk.Tk):
 
 
         self._update_preview()
+
+    def save_personal_data_to_db_and_txt(self):
+        vorname = self.entry_vorname.get().strip()
+        nachname = self.entry_nachname.get().strip()
+        datum = self.entry_datum.get().strip()
+        matrikel = self.matrikel_var.get().strip()
+
+        # SQLite speichern
+        conn = sqlite3.connect("daten.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS krankmeldungen (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vorname TEXT,
+                nachname TEXT,
+                datum TEXT,
+                matrikelnummer TEXT
+            )
+        """)
+        cursor.execute("INSERT INTO krankmeldungen (vorname, nachname, datum, matrikelnummer) VALUES (?, ?, ?, ?)",
+                       (vorname, nachname, datum, matrikel))
+        conn.commit()
+        conn.close()
+
+        # Textdatei speichern
+        with open("krankmeldung.txt", "w", encoding="utf-8") as f:
+            f.write(f"Meine letzte Krankmeldung vom {datetime.datetime.now().strftime('%d.%m.%Y')}\n\n")
+            f.write(
+                f"Vorname: {vorname}\nNachname: {nachname}\nDatum erster Krankheitstag: {datum}\nMatrikelnummer: {matrikel}\n")
+
+        messagebox.showinfo("Erfolg", "Daten wurden in Datenbank und Textdatei gespeichert.")
+
+    def load_data_from_db(self):
+        try:
+            conn = sqlite3.connect("daten.db")
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT vorname, nachname, datum, matrikelnummer, empfaenger_list FROM krankmeldungen ORDER BY id DESC LIMIT 1")
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                vorname, nachname, datum, matrikel, empfaenger_str = row
+                self.entry_vorname.delete(0, tk.END)
+                self.entry_vorname.insert(0, vorname)
+                self.entry_nachname.delete(0, tk.END)
+                self.entry_nachname.insert(0, nachname)
+                self.entry_datum.delete(0, tk.END)
+                self.entry_datum.insert(0, datum)
+                self.matrikel_var.set(matrikel)
+
+                # Alle Empfänger-Dropboxen aus = False
+                for var in self.prof_vars.values():
+                    var.set(False)
+                # gespeicherte Empfänger wieder auf True setzen
+                gespeicherte_empfaenger = empfaenger_str.split(",") if empfaenger_str else []
+                for anrede in gespeicherte_empfaenger:
+                    if anrede in self.prof_vars:
+                        self.prof_vars[anrede].set(True)
+        except Exception as e:
+            print("Fehler beim Laden aus DB:", e)
 
     def export_output(self):
         text = self.output_text.get("1.0", "end-1c")
@@ -220,6 +284,27 @@ class KrankmeldungApp(tk.Tk):
         self.entry_datum_2 = ttk.Entry(self.top, width=14)
         self.entry_datum_2.grid(row=1, column=7, padx=10, sticky="w")
         self.entry_datum_2.bind("<KeyRelease>", lambda e: self._update_preview())
+
+        # ----------------- Icon laden  ----------------- START
+        diskette_img = tk.PhotoImage(file="icon_save_Windows.png") # tkinter kann nur Zoom mit ganzen Zahlen, unpraktisch. Lieber pillow (auch PIL genannt) benutzen.
+        # diskette_img = Image.open("icon_save_Windows.png")
+
+        # # Genaues Skalieren auf 32x32 px
+        # small_img = diskette_img.resize((32, 32), resample=Image.Resampling.LANCZOS)
+
+        # photo_img = ImageTk.PhotoImage(small_img)
+        # ----------------- Icon laden  ----------------- ENDE
+
+        btn_save = ttk.Button(self.top, text="Speichern", image=diskette_img,
+                              compound="left",
+                              command=self.save_personal_data_to_db_and_txt)
+
+        btn_save.image = diskette_img  # Windows-Disketten-Icon aus MS365 selbst ausgeschnitten als Screenshot
+        # btn_save = ttk.Button(self.top, text="💾", command=self.save_personal_data_to_db_and_txt)
+        btn_save.grid(row=0, column=9, sticky="e", padx=10)
+
+        # mit lokal vorgespeicherten persönlichen Daten des Nutzers aus .db-Datei Felder befüllen:
+        self.load_data_from_db()
 
         def on_datum_2_change(event=None):
             text = self.entry_datum_2.get().strip()
@@ -278,8 +363,19 @@ class KrankmeldungApp(tk.Tk):
         ]
         self.left_vars = {}
 
+        def on_vorlesungszeit_toggle():
+            pass
+
+        def on_Prüfungstag_toggle():
+            pass
+
         def on_berufspraxis_toggle():
             pass
+
+        def on_KrankImDienst_toggle():
+            pass
+
+        # NOCH NICHT FERTIG: FF2511162123
         #     if self.left_vars["Berufspraxis."].get():
         #         if "Ausbildungsleitung" in self.prof_vars:
         #             self.prof_vars["Ausbildungsleitung"].set(True)
@@ -348,64 +444,6 @@ class KrankmeldungApp(tk.Tk):
         self.center_scrollable_frame = scrollable_frame
 
 
-        #
-        #     # Label: Modul und E-Mail
-        #     label = f"{modul} ({email})"
-        #     var = tk.BooleanVar()
-        #     self.prof_vars[anrede] = var
-        #     var.trace_add('write', lambda *args, a=anrede: self._update_preview())
-        #     ttk.Checkbutton(scrollable_frame, text=label, variable=var).grid(row=row_idx, column=0, sticky="w", pady=2)
-        #     row_idx += 1
-        #     # var.trace_add('write', lambda *args: self._update_preview())
-        #     # cb = ttk.Checkbutton(center, text=label, variable=var)
-        #     # cb.grid(row=row_idx, column=0, sticky="w", pady=2)
-        #     # self.prof_vars[anrede] = var
-        #     row_idx += 1
-        #
-        #     erste_anrede = ""
-        #     if self.greeting_items:
-        #         erste_anrede = self.greeting_items[0].get("anrede", "")
-        #         if erste_anrede != "":
-        #             self.template_body = self.template_body.replace("{{anrede}}", erste_anrede)
-        #
-        # #
-        # # greeting_items[0] ist ZPD mit allen Informationen
-        # if self.greeting_items:
-        #     zpd = self.greeting_items[0]
-        #     # Text inkl. E-Mail-Adresse wie bei anderen Empfängern
-        #     text = f"{zpd['anrede']} ({zpd['email']})" if zpd.get('email') else zpd['anrede']
-        #     self.var_zpd = tk.BooleanVar(value=True)
-        #     ttk.Checkbutton(center, text=text, variable=self.var_zpd, command=self._update_preview).grid(row=0,
-        #                                                                                                  column=0,
-        #                                                                                                  sticky="w",
-        #                                                                                                  pady=2)
-        #
-        # # Restliche Empfänger dynamisch aufbauen ...
-        # for i, empfaenger in enumerate(self.greeting_items[1:], start=1):
-        #     var_name = f"var_empfaenger_{i}"
-        #     setattr(self, var_name, tk.BooleanVar(value=False))
-        #     var = getattr(self, var_name)
-        #     text = f"{empfaenger['anrede']} ({empfaenger['email']})" if empfaenger.get('email') else empfaenger[
-        #         'anrede']
-        #     ttk.Checkbutton(center, text=text, variable=var, command=self._update_preview).grid(row=i, column=0,
-        #                                                                                         sticky="w", pady=2)
-
-
-        #
-        # zpd_lbl = ""
-        # zpd_email = ""
-        # if self.greeting_items:
-        #     zpd_lbl = self.greeting_items[0]["anrede"] or ""
-        #     zpd_email = self.greeting_items[0].get("email", "")
-        # ttk.Checkbutton(center, text=zpd_lbl, variable=self.var_zpd, command=self._update_preview).grid(row=0, column=0, sticky="w", pady=2)
-        # zpd_text = f"{zpd_lbl} ({zpd_email})" if zpd_email else zpd_lbl
-
-        # # BooleanVar mit True initialisieren, sodass es angehakt ist
-        # self.var_zpd = tk.BooleanVar(value=True)
-
-        # ttk.Checkbutton(center, text=zpd_text, variable=self.var_zpd, command=self._update_preview).grid(row=0,
-        # ttk.Checkbutton(center, text=zpd_text, variable=self.var_zpd, command=self._update_preview).grid(row=0,
-
 
         # --- Automatische Auswahl anhand Stundenplan.txt ---
         self._auto_select_by_stundenplan()
@@ -471,12 +509,12 @@ class KrankmeldungApp(tk.Tk):
                 self.attest_var.set(True)
             self._update_preview()  # Optionale Aktualisierung der Vorschau
 
+        self.gkv_var = tk.BooleanVar()
+        ttk.Checkbutton(right, text="GKV", variable=self.gkv_var, command=self._update_preview).pack(anchor="w", pady=2)
 
         self.unfall_var = tk.BooleanVar()
         ttk.Checkbutton(right, text="Unfall", variable=self.unfall_var, command=self._update_preview).pack(anchor="w",
                                                                                                            pady=2)
-        self.gkv_var = tk.BooleanVar()
-        ttk.Checkbutton(right, text="GKV", variable=self.gkv_var, command=self._update_preview).pack(anchor="w", pady=2)
         self.attest_var = tk.BooleanVar()
         ttk.Checkbutton(right, text="Attest", variable=self.attest_var, command=self._update_preview).pack(anchor="w",
                                                                                                            pady=2)
@@ -646,15 +684,12 @@ class KrankmeldungApp(tk.Tk):
             #     if g and g.get("email"):
             #         cc_list.append(g["email"])
         """
-        # ZPD (z.B. erstes Element mit entsprechendem Modul oder Anrede) immer als To-Empfänger
-        zpd = next((g for g in self.greeting_items if "ZPD" in g.get("modul", "") or "ZPD" in g.get("anrede", "")), None)
-        if zpd and zpd.get("email"):
-            to_list = [zpd["email"]]
+
 
         # Alle Anwender-Auswahlen im mittleren Panel als CC, auch ZPD nicht doppeln
         for anrede in anreden_auswahl:
-            if zpd and anrede == zpd.get("anrede"):
-                continue  # ZPD nicht nochmal in CC
+            # if zpd and anrede == zpd.get("anrede"):
+            #     continue  # ZPD nicht nochmal in CC
             g = next((g for g in self.greeting_items if g["anrede"] == anrede), None)
             if g and g.get("email"):
                 cc_list.append(g["email"])
@@ -715,6 +750,7 @@ class KrankmeldungApp(tk.Tk):
             self._update_preview()
 
     def _save_text_as_file(self):
+        # 2511132250 UNUSED.
         file_path = filedialog.asksaveasfilename(defaultextension=".txt",
                                                  filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
                                                  title="Text als Datei speichern")
@@ -729,9 +765,9 @@ class KrankmeldungApp(tk.Tk):
 
 
     def _prepare_emails(self, send_now=False):
-        initial_anrede = "Sehr geehrte Damen und Herren vom ZPD"
+        # initial_anrede = "Sehr geehrte Damen und Herren vom ZPD"
         if self.template_body is not None:
-            self.template_body = self.template_body.replace("{anrede}", initial_anrede)
+            self.template_body = self.template_body.replace("{anrede}", anrede)
 
         self.update_idletasks()  # alle GUI-Ereignisse abarbeiten
         self._update_preview()  # Kontext inkl. Empfängerliste neu generieren
