@@ -392,7 +392,7 @@
                 {value || <span className="text-slate-400 dark:text-slate-500 font-sans italic">Wird automatisch generiert...</span>}
               </div>
               {value && (
-                <button onClick={handleCopy} title="In die Zwischenablage kopieren" className="absolute top-2 right-2 p-2 rounded-md bg-white/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label="Copy">
+                <button onClick={handleCopy} title="In die Zwischenlage kopieren" className="absolute top-2 right-2 p-2 rounded-md bg-white/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label="Copy">
                   {copied ? <CheckIcon /> : <CopyIcon />}
                 </button>
               )}
@@ -522,6 +522,16 @@
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState(null);
         const [currentDate, setCurrentDate] = useState(new Date());
+        
+        const categoryOrder = [
+          'CampusKlassiker',
+          'Highlight',
+          'CampusVital',
+          'CampusWorld',
+          'Pottkieker',
+          'Pastabar',
+          'Gemüsebar',
+        ];
 
         useEffect(() => {
           if (isOpen) {
@@ -567,12 +577,20 @@
             };
         }, [isOpen, onClose]);
 
-        const groupedMenu = useMemo(() => menu.reduce((acc, item) => {
-            const category = item.Category || 'Sonstiges';
-            if (!acc[category]) acc[category] = [];
-            acc[category].push(item);
-            return acc;
-        }, {}), [menu]);
+        const groupedMenu = useMemo(() => {
+            const grouped = menu.reduce((acc, item) => {
+                const category = item.Category || 'Sonstiges';
+                if (!acc[category]) acc[category] = [];
+                acc[category].push(item);
+                return acc;
+            }, {});
+
+            for (const category in grouped) {
+                grouped[category].sort((a, b) => b.PriceStudent - a.PriceStudent);
+            }
+            
+            return grouped;
+        }, [menu]);
         
         const allAdditives = useMemo(() => {
             if (!menu || menu.length === 0) return {};
@@ -634,30 +652,42 @@
                 {loading && <div className="flex justify-center items-center h-full"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}
                 {error && <div className="text-center text-red-500 dark:text-red-400 p-8">{error}</div>}
                 {!loading && !error && Object.keys(groupedMenu).length > 0 ? (
-                    Object.entries(groupedMenu).map(([category, items]) => (
+                    Object.entries(groupedMenu)
+                      .sort(([catA], [catB]) => {
+                          const indexA = categoryOrder.indexOf(catA);
+                          const indexB = categoryOrder.indexOf(catB);
+                          if (indexA === -1 && indexB === -1) return catA.localeCompare(catB);
+                          if (indexA === -1) return 1;
+                          if (indexB === -1) return -1;
+                          return indexA - indexB;
+                      })
+                      .map(([category, items]) => (
                         <div key={category} className="mb-6">
                             <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mb-3 pb-2 border-b-2 border-indigo-200 dark:border-indigo-500/30">{category}</h3>
                             <div className="space-y-4">
-                                {items.map((item, index) => (
-                                    <div key={index} className="bg-slate-50 dark:bg-slate-700/40 p-4 rounded-lg">
-                                        <h4 className="font-semibold text-slate-800 dark:text-slate-100">{item.Name}</h4>
-                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 text-sm gap-2">
-                                            <div className="flex flex-wrap gap-2">
-                                                {item.Vegan && <span className="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300 rounded-full text-xs font-semibold">Vegan</span>}
-                                                {item.Vegetarian && !item.Vegan && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 rounded-full text-xs font-semibold">Vegetarisch</span>}
-                                                {item.LactoseFree && <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 rounded-full text-xs font-semibold">Laktosefrei</span>}
+                                {items.map((item, index) => {
+                                    const cleanedName = item.Name.replace(/\s*\([^)]+\)/g, '').trim();
+                                    return (
+                                        <div key={index} className="bg-slate-50 dark:bg-slate-700/40 p-4 rounded-lg">
+                                            <h4 className="font-semibold text-slate-800 dark:text-slate-100">{cleanedName}</h4>
+                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 text-sm gap-2">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {item.Vegan && <span className="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300 rounded-full text-xs font-semibold">Vegan</span>}
+                                                    {item.Vegetarian && !item.Vegan && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 rounded-full text-xs font-semibold">Vegetarisch</span>}
+                                                    {item.LactoseFree && <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 rounded-full text-xs font-semibold">Laktosefrei</span>}
+                                                </div>
+                                                <div className="text-left sm:text-right font-mono text-xs text-slate-600 dark:text-slate-300 flex-shrink-0">
+                                                    <span>Stud: <strong>{item.PriceStudent.toFixed(2)}€</strong></span> / <span>Bed: {item.PriceAttendant.toFixed(2)}€</span> / <span>Gast: {item.PriceGuest.toFixed(2)}€</span>
+                                                </div>
                                             </div>
-                                            <div className="text-left sm:text-right font-mono text-xs text-slate-600 dark:text-slate-300 flex-shrink-0">
-                                                <span>Stud: <strong>{item.PriceStudent.toFixed(2)}€</strong></span> / <span>Bed: {item.PriceAttendant.toFixed(2)}€</span> / <span>Gast: {item.PriceGuest.toFixed(2)}€</span>
-                                            </div>
+                                            {Object.keys(item.Additives).length > 0 && (
+                                                <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                                    Zusatzstoffe: {Object.keys(item.Additives).map(code => code.replace(/<\/?strong>/g, '')).join(', ')}
+                                                </div>
+                                            )}
                                         </div>
-                                        {Object.keys(item.Additives).length > 0 && (
-                                            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                                Zusatzstoffe: {Object.keys(item.Additives).map(code => code.replace(/<\/?strong>/g, '')).join(', ')}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     ))
