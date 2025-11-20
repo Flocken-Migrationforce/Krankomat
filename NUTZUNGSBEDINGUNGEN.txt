@@ -1,0 +1,33 @@
+Nutzungsbedingungen
+21.10.2025
+
+1. Nutzungsrecht
+Die Software darf von jedem Nutzer kostenlos verwendet werden. Die Nutzung ist nicht-kommerziell und ausschließlich für den vorgesehenen Zweck gestattet.
+
+2. Modifikationsrechte
+Nur die ausdrücklich benannten Mitwirkenden Laurin Bennet Jaetschmann, Marvin Junk, Cederic Langpaap und Fabian Flocken dürfen die Software modifizieren, weiterentwickeln und verändern. Alle anderen Nutzer erhalten nur das Recht zur unmodifizierten Nutzung der Software.
+
+3. Verbotene Handlungen
+Es ist anderen Nutzern ausdrücklich verboten, ohne schriftliche Zustimmung des Lizenzgebers
+
+die Software oder den Quellcode zu modifizieren,
+
+die Software weiterzuverbreiten,
+
+abgeleitete Werke zu erstellen,
+
+oder die Software kommerziell zu nutzen.
+
+4. Haftungsausschluss
+Die Nutzung der Software erfolgt auf eigenes Risiko. Die Entwickler, der Lizenzgeber sowie alle am Projekt Beteiligten übernehmen keinerlei Haftung für Schäden, Fehler oder Verluste, die durch die Nutzung der Software entstehen, insbesondere bei Fehlern in der E-Mail-Versendung oder Funktionsstörungen.
+
+5. Salvatorische Klausel
+Sollte eine Bestimmung dieser Nutzungsbedingungen unwirksam sein oder werden, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. Anstelle der unwirksamen Klausel gilt eine rechtswirksame Regelung, die dem wirtschaftlichen Zweck der unwirksamen Bestimmung möglichst nahekommt. Diese Klausel gilt in Übereinstimmung mit § 139 BGB.
+
+6. Rechtliche Grundlage und Datum
+Diese Nutzungsbedingungen basieren auf deutschem Recht, insbesondere §§ 305 ff. BGB (Allgemeine Geschäftsbedingungen). Sie wurden zuletzt am 21.10.2025 erstellt.
+
+7. Zustimmung
+Mit der Nutzung der Software erklärt der Nutzer, dass er diese Bedingungen gelesen, verstanden und akzeptiert hat.
+
+8. Vom Nutzer eingegebene Daten dürfen auf dessen eigenem Endgerät lokal gespeichert werden, soweit dies zur Nutzung des Dienstes erforderlich oder technisch bedingt ist.

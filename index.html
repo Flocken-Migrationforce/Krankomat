@@ -10,7 +10,12 @@
       tailwind.config = {
         darkMode: 'class',
         theme: {
-          extend: {},
+          extend: {
+            animation: {
+              'scale-in': 'scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'fade-in': 'fade-in 0.5s ease-out forwards',
+            }
+          },
         },
         plugins: [],
       }
@@ -21,6 +26,31 @@
         -moz-osx-font-smoothing: grayscale;
         font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
       }
+      
+      @keyframes scale-in {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+      }
+      
+      @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+      }
+      
+      /* Scrollbar styling for terms */
+      .terms-scroll::-webkit-scrollbar {
+        width: 8px;
+      }
+      .terms-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .terms-scroll::-webkit-scrollbar-thumb {
+        background-color: rgba(156, 163, 175, 0.5);
+        border-radius: 4px;
+      }
+      .terms-scroll::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(156, 163, 175, 0.8);
+      }
     </style>
     <!-- React and ReactDOM from CDN -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
@@ -28,6 +58,15 @@
     <!-- Babel Standalone for JSX/TSX transpilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+  }
+}
+</script>
 </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -37,6 +76,10 @@
       // All application code is consolidated into this single script block.
       // The browser will transpile and run it on the fly thanks to Babel.
       const { useState, useEffect, useMemo, useCallback } = React;
+
+      // --- CONFIGURATION ---
+      // Change this to true to disable the mandatory terms acceptance modal.
+      const SKIP_TERMS_CHECK = true; 
 
       // --- UTILS ---
       const todayFormatted = () => {
@@ -95,6 +138,191 @@
       const EMAIL_SUBJECT_TEMPLATE = "{art} E-Gov 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]";
       
       // --- COMPONENTS ---
+      const TermsModal = ({ onAccept }) => {
+        const [isOpen, setIsOpen] = useState(false);
+        // This matches the date in your provided text file, acting as a version control
+        const TERMS_VERSION = '20.11.2025'; 
+        const STORAGE_KEY = 'krankomat_agb_accepted_version';
+
+        useEffect(() => {
+          // Bypass check if configured
+          if (SKIP_TERMS_CHECK) {
+            if (onAccept) onAccept();
+            return;
+          }
+
+          const acceptedVersion = localStorage.getItem(STORAGE_KEY);
+          // If the saved version doesn't match current version, show modal
+          if (acceptedVersion !== TERMS_VERSION) {
+            setIsOpen(true);
+          } else {
+            if (onAccept) onAccept();
+          }
+        }, [onAccept]);
+
+        const handleAccept = () => {
+          localStorage.setItem(STORAGE_KEY, TERMS_VERSION);
+          setIsOpen(false);
+          if (onAccept) onAccept();
+        };
+
+        if (!isOpen) return null;
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all duration-500">
+             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full flex flex-col border border-slate-200 dark:border-slate-700 animate-[scale-in_0.3s_ease-out_forwards]">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-t-2xl text-center">
+                   <div className="mx-auto h-12 w-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center mb-4">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-indigo-600 dark:text-indigo-400">
+                       <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+                     </svg>
+                   </div>
+                   <h2 className="text-xl font-bold text-slate-800 dark:text-white">Nutzungsbedingungen</h2>
+                   <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">{TERMS_VERSION}</p>
+                </div>
+                
+                <div className="p-8 bg-white dark:bg-slate-800 text-center space-y-6">
+                   <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                     Bitte lesen Sie unsere Nutzungsbedingungen sorgfältig durch, bevor Sie fortfahren. Mit der Nutzung dieser Software akzeptieren Sie die Bedingungen.
+                   </p>
+                   
+                   <a 
+                     href="./NUTZUNGSBEDINGUNGEN.txt" 
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="inline-flex items-center justify-center w-full px-4 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition-colors group border border-slate-200 dark:border-slate-600"
+                   >
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 mr-3 text-slate-500 group-hover:text-indigo-500 transition-colors">
+                       <path d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625z" />
+                       <path d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z" />
+                     </svg>
+                     Nutzungsbedingungen lesen
+                   </a>
+                </div>
+
+                <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl">
+                   <button 
+                     onClick={handleAccept}
+                     className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-lg hover:shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800"
+                   >
+                     Gelesen & Akzeptieren
+                   </button>
+                </div>
+             </div>
+          </div>
+        );
+      };
+
+      const ExpertModal = ({ isOpen, onClose }) => {
+        const [importError, setImportError] = useState(null);
+
+        if (!isOpen) return null;
+
+        const getCurrentConfig = () => {
+          return {
+            userData: JSON.parse(localStorage.getItem('krankomat_userData') || '{}'),
+            recipients: JSON.parse(localStorage.getItem('krankomat_recipients') || '[]'),
+            sicknessStartDate: JSON.parse(localStorage.getItem('krankomat_sicknessStartDate') || '""'),
+            sicknessEndDate: JSON.parse(localStorage.getItem('krankomat_sicknessEndDate') || '""'),
+            absenceReasons: JSON.parse(localStorage.getItem('krankomat_absenceReasons') || '{}'),
+            details: JSON.parse(localStorage.getItem('krankomat_details') || '{}')
+          };
+        };
+
+        const handleExport = () => {
+          const config = getCurrentConfig();
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
+          const downloadAnchorNode = document.createElement('a');
+          downloadAnchorNode.setAttribute("href", dataStr);
+          downloadAnchorNode.setAttribute("download", "krankomat_config.json");
+          document.body.appendChild(downloadAnchorNode);
+          downloadAnchorNode.click();
+          downloadAnchorNode.remove();
+        };
+
+        const handleFileUpload = (event) => {
+          setImportError(null);
+          const fileReader = new FileReader();
+          const file = event.target.files[0];
+
+          if (!file) return;
+
+          fileReader.readAsText(file, "UTF-8");
+          fileReader.onload = (e) => {
+            try {
+              const json = JSON.parse(e.target.result);
+              
+              // Basic structure validation/mapping
+              if (json.userData) localStorage.setItem('krankomat_userData', JSON.stringify(json.userData));
+              if (json.recipients) localStorage.setItem('krankomat_recipients', JSON.stringify(json.recipients));
+              if (json.sicknessStartDate) localStorage.setItem('krankomat_sicknessStartDate', JSON.stringify(json.sicknessStartDate));
+              if (json.sicknessEndDate) localStorage.setItem('krankomat_sicknessEndDate', JSON.stringify(json.sicknessEndDate));
+              if (json.absenceReasons) localStorage.setItem('krankomat_absenceReasons', JSON.stringify(json.absenceReasons));
+              if (json.details) localStorage.setItem('krankomat_details', JSON.stringify(json.details));
+              
+              window.location.reload();
+            } catch (err) {
+              setImportError("Fehler beim Importieren: Ungültige JSON-Datei.");
+              console.error(err);
+            }
+          };
+        };
+
+        return (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm transition-all" onClick={onClose}>
+             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-lg w-full border border-indigo-500/30 animate-[scale-in_0.2s_ease-out_forwards]" onClick={e => e.stopPropagation()}>
+                <div className="p-5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                   <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400">
+                       <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
+                     </svg>
+                     Expert Mode: Configuration
+                   </h2>
+                   <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                       <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
+                     </svg>
+                   </button>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Backup & Template</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                      Download your current configuration as a JSON file. You can use this as a template for making changes or as a backup.
+                    </p>
+                    <button 
+                      onClick={handleExport}
+                      className="w-full py-2 bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-200 rounded-md text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-500 transition-colors flex items-center justify-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-2">
+                        <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z" clipRule="evenodd" />
+                      </svg>
+                      Download Current Config (JSON)
+                    </button>
+                  </div>
+
+                  <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/30">
+                    <h3 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-2">Import Configuration</h3>
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-3">
+                      Upload a JSON config file to overwrite the current application state. <strong>Warning: This will reload the page.</strong>
+                    </p>
+                    <label className="w-full flex flex-col items-center px-4 py-4 bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 rounded-lg shadow-sm tracking-wide uppercase border border-indigo-200 dark:border-slate-600 cursor-pointer hover:bg-indigo-50 dark:hover:bg-slate-600 transition-colors">
+                        <svg className="w-6 h-6" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" />
+                        </svg>
+                        <span className="mt-2 text-xs font-bold">Select JSON File</span>
+                        <input type='file' className="hidden" accept=".json" onChange={handleFileUpload} />
+                    </label>
+                    {importError && (
+                      <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">{importError}</p>
+                    )}
+                  </div>
+                </div>
+             </div>
+          </div>
+        );
+      };
+
       const DarkModeToggle = ({ isDarkMode, toggleDarkMode }) => {
         return (
           <button
@@ -147,14 +375,30 @@
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
+                <a 
+                    href="https://hawhamburgedu.sharepoint.com/sites/EGov25-Cloud/Freigegebene%20Dokumente/Forms/AllItems.aspx"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
+                    aria-label="Dateifreigabe öffnen"
+                    title="Dateifreigabe öffnen"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="h-6 w-6">
+                        <path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/>
+                    </svg>
+                </a>
                 <button 
                     onClick={onMensaToggle}
                     className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
                     aria-label="Mensa-Menü anzeigen"
                     title="Mensa-Menü anzeigen"
                 >
-                    <svg className="h-6 w-6" viewBox="80 50 380 310" fill="currentColor">
-                      <path d="M 440.849 143.712 L 444.903 139.742 C 447.227 137.522 448.496 134.773 448.574 131.788 C 448.661 128.318 447.146 124.743 444.297 121.716 C 441.451 118.689 438.09 117.076 434.83 117.171 C 432.479 117.241 430.298 118.249 428.427 120.003 C 423.344 112.065 417.517 104.59 411.07 97.771 L 412.971 95.462 C 414.707 93.351 414.629 90.168 412.794 88.213 C 411.84 87.202 410.569 86.66 409.21 86.688 C 407.846 86.717 406.526 87.352 405.591 88.43 C 405.003 89.106 404.373 89.839 403.77 90.538 C 403.285 90.088 402.79 89.642 402.295 89.198 C 403.03 88.382 403.776 87.556 404.484 86.765 C 406.388 84.647 406.376 81.388 404.454 79.347 L 404.154 79.028 C 403.222 78.036 401.977 77.491 400.649 77.5 C 399.296 77.503 398.022 78.081 397.065 79.117 L 394.081 82.354 C 393.535 81.93 392.983 81.512 392.432 81.098 C 393.541 79.946 394.66 78.785 395.712 77.688 C 396.69 76.674 397.23 75.319 397.239 73.877 C 397.245 72.461 396.735 71.138 395.802 70.143 L 395.499 69.824 C 393.583 67.783 390.518 67.77 388.53 69.789 C 386.908 71.437 385.21 73.156 383.468 74.92 C 382.871 74.534 382.259 74.161 381.651 73.788 C 383.48 72.018 385.267 70.286 386.962 68.628 C 387.978 67.639 388.575 66.236 388.605 64.782 C 388.635 63.337 388.125 61.978 387.127 60.919 C 385.294 58.971 382.307 58.885 380.322 60.722 L 372.054 68.376 C 352.756 58.559 332.103 53.555 310.634 53.555 C 232.09 53.555 168.19 121.512 168.187 205.045 C 168.19 232.357 175.16 259.093 188.289 282.489 C 187.908 282.878 187.674 283.118 187.635 283.159 C 185.371 285.331 184.135 287.994 184.066 290.864 C 183.988 294.038 185.341 297.271 187.878 299.966 C 190.412 302.661 193.45 304.1 196.434 304.02 C 198.233 303.969 199.927 303.325 201.466 302.231 C 204.174 305.659 206.993 308.973 209.953 312.117 C 217.642 320.295 226.165 327.474 235.38 333.603 C 234.586 338.193 234.076 342.61 233.77 346.641 C 233.668 347.917 234.097 349.122 234.906 349.98 C 235.233 350.328 235.62 350.618 236.061 350.838 C 237.578 351.584 239.318 351.256 240.502 350.002 C 243.201 347.145 245.912 344.278 248.623 341.407 C 268.062 351.425 288.913 356.531 310.634 356.534 C 389.181 356.531 453.081 288.574 453.081 205.045 C 453.081 183.654 448.948 163.033 440.849 143.712 Z M 426.217 122.382 L 403.602 148.48 C 399.218 140.399 393.91 132.875 387.762 126.079 L 409.021 100.259 C 415.433 107.061 421.2 114.483 426.217 122.382 Z M 401.416 151.006 L 358.457 200.583 C 357.327 201.926 354.835 204.7 352.316 207.478 C 348.027 212.211 342.275 215.002 336.116 215.333 C 329.044 215.719 322.39 218.864 317.382 224.19 L 254.267 291.308 C 252.99 292.669 251.814 294.105 250.683 295.568 C 242.215 289.257 234.727 281.635 228.381 272.886 C 258.232 239.836 305.842 187.099 317.241 174.332 C 321.184 169.912 323.904 167.227 329.881 167.667 C 343.565 168.678 357.555 162.42 367.304 150.93 L 385.711 128.573 C 391.829 135.369 397.107 142.896 401.416 151.006 Z M 171.288 205.045 C 171.288 123.33 233.8 56.85 310.634 56.85 C 331.182 56.85 350.96 61.56 369.484 70.755 L 342.035 96.17 C 331.806 92.847 321.25 91.144 310.634 91.166 C 282.043 91.153 255.131 103.017 234.861 124.577 C 214.592 146.133 203.433 174.753 203.445 205.156 C 203.424 222.662 207.302 240.053 214.604 255.62 C 203.709 266.744 194.94 275.696 190.598 280.132 C 177.991 257.406 171.288 231.506 171.288 205.045 Z M 312.277 148.933 C 312.658 155.404 310.139 158.293 305.998 162.478 C 294.446 174.141 248.108 221.418 216.952 253.225 C 210.145 238.347 206.525 221.811 206.546 205.16 C 206.534 175.63 217.369 147.839 237.054 126.905 C 256.735 105.974 282.87 94.451 310.637 94.461 C 320.294 94.442 329.887 95.937 339.226 98.769 L 327.995 109.166 C 317.292 119.448 311.417 134.314 312.277 148.933 Z M 201.379 298.018 C 199.9 299.765 198.209 300.674 196.353 300.725 C 194.23 300.783 191.995 299.686 190.07 297.635 C 188.142 295.588 187.11 293.212 187.164 290.95 C 187.212 288.976 188.067 287.181 189.743 285.573 C 190.748 284.546 290.41 182.761 308.13 164.87 C 312.658 160.296 315.825 156.463 315.369 148.726 C 314.569 135.101 320.066 121.228 330.052 111.635 L 382.358 63.206 C 383.117 62.501 384.251 62.52 384.979 63.295 C 385.33 63.668 385.519 64.172 385.507 64.711 C 385.495 65.279 385.267 65.808 384.868 66.201 C 378.643 72.279 371.367 79.254 364.188 86.133 C 354.85 95.086 346.027 103.54 339.594 109.941 C 337.342 112.18 336.838 115.436 338.452 117.35 L 338.998 118 C 339.684 118.82 340.635 119.257 341.715 119.302 C 343.19 119.359 344.749 118.667 345.997 117.395 C 352.268 111 360.871 102.309 369.67 93.421 C 376.939 86.076 384.341 78.6 390.668 72.174 C 391.433 71.399 392.591 71.39 393.31 72.155 L 393.61 72.474 C 393.955 72.841 394.144 73.332 394.141 73.858 C 394.138 74.413 393.925 74.936 393.544 75.335 C 387.513 81.611 380.496 88.857 373.56 96.014 C 364.554 105.314 355.686 114.467 349.296 121.18 C 348.072 122.465 347.37 124.105 347.364 125.677 C 347.358 126.825 347.742 127.865 348.444 128.611 L 349.02 129.227 C 349.719 129.967 350.699 130.375 351.776 130.368 C 353.257 130.365 354.802 129.613 356.01 128.308 C 363.288 120.475 373.677 109.201 383.789 98.227 L 399.278 81.423 C 399.65 81.021 400.142 80.795 400.664 80.795 C 401.158 80.792 401.62 80.989 401.962 81.356 L 402.265 81.678 C 402.982 82.44 402.976 83.678 402.247 84.488 C 393.397 94.314 382.382 106.526 372.762 117.19 L 359.561 131.829 C 358.367 133.156 357.714 134.814 357.771 136.377 C 357.81 137.522 358.235 138.558 358.997 139.27 L 359.609 139.853 C 361.408 141.563 364.47 141.027 366.575 138.632 C 372.729 131.638 380.931 122.057 389.613 111.912 C 395.931 104.532 402.31 97.079 407.87 90.662 C 408.242 90.235 408.74 89.993 409.273 89.983 C 410.77 89.954 411.645 92.072 410.638 93.29 L 364.998 148.732 C 355.881 159.473 342.836 165.323 330.094 164.382 C 322.897 163.849 319.442 167.077 314.991 172.062 C 298.168 190.907 202.378 296.914 201.379 298.018 Z M 353.584 100.759 C 357.567 96.916 361.852 92.809 366.263 88.58 C 370.651 84.376 375.047 80.16 379.246 76.11 C 379.881 76.492 380.505 76.891 381.132 77.287 C 376.741 81.729 372.126 86.392 367.535 91.029 C 363.771 94.831 360.059 98.584 356.532 102.15 C 355.56 101.668 354.571 101.215 353.584 100.759 Z M 354.103 104.609 C 350.318 108.439 346.819 111.989 343.853 115.012 C 343.106 115.778 342.317 116.026 341.831 116.007 C 341.589 116.001 341.433 115.927 341.304 115.803 L 340.758 115.156 C 340.419 114.751 340.626 113.427 341.709 112.346 C 344.441 109.632 347.622 106.526 351.08 103.18 C 352.1 103.636 353.101 104.121 354.103 104.609 Z M 366.482 107.919 C 369.481 104.819 372.588 101.614 375.719 98.38 C 380.631 93.309 385.567 88.213 390.182 83.432 C 390.755 83.86 391.322 84.297 391.886 84.733 L 381.576 95.918 C 377.338 100.517 373.065 105.154 368.98 109.581 C 368.162 109.016 367.322 108.468 366.482 107.919 Z M 366.761 111.992 C 361.942 117.213 357.477 122.041 353.806 125.993 C 353.068 126.787 352.268 127.071 351.761 127.074 C 351.587 127.074 351.35 127.042 351.209 126.892 L 350.636 126.283 C 350.489 126.13 350.462 125.875 350.462 125.69 C 350.465 125.157 350.732 124.306 351.476 123.524 C 355.066 119.751 359.453 115.194 364.194 110.286 C 365.064 110.841 365.912 111.415 366.761 111.992 Z M 377.77 116.403 C 385.141 108.229 393.082 99.426 400.148 91.584 C 400.661 92.037 401.17 92.499 401.671 92.965 C 397.119 98.246 392.207 103.987 387.322 109.696 C 384.805 112.636 382.337 115.516 379.938 118.313 C 379.231 117.659 378.508 117.025 377.77 116.403 Z M 377.851 120.75 C 372.792 126.643 368.153 132.02 364.314 136.383 C 363.297 137.535 362.05 137.755 361.672 137.394 L 361.063 136.814 C 360.922 136.712 360.877 136.508 360.865 136.253 C 360.847 135.736 361.084 134.904 361.798 134.109 L 374.999 119.474 C 375.203 119.248 375.416 119.012 375.62 118.785 C 376.382 119.423 377.122 120.077 377.851 120.75 Z M 236.031 330.14 C 223.937 321.947 213.105 311.853 203.811 300.084 C 205.095 298.665 213.944 288.868 226.24 275.256 C 228.945 278.952 231.806 282.499 234.897 285.787 C 239.171 290.332 243.819 294.459 248.779 298.164 C 242.074 307.888 238.211 319.354 236.031 330.14 Z M 238.316 347.668 C 237.938 348.067 237.524 347.926 237.363 347.847 C 237.198 347.764 236.811 347.502 236.853 346.909 C 238.091 330.806 242.494 308.494 256.459 293.639 L 319.574 226.518 C 324.036 221.772 329.968 218.969 336.275 218.624 C 343.223 218.248 349.713 215.104 354.547 209.765 C 357.099 206.952 359.618 204.139 360.751 202.8 L 429.657 123.272 C 431.18 121.467 432.952 120.523 434.917 120.466 C 437.316 120.396 439.871 121.668 442.108 124.047 C 444.342 126.426 445.542 129.144 445.476 131.695 C 445.422 133.784 444.534 135.669 442.819 137.302 L 368.072 210.556 C 365.909 212.619 268.209 316.024 238.316 347.668 Z M 410.347 173.608 C 413.211 183.741 414.725 194.326 414.725 205.16 C 414.734 234.689 403.899 262.477 384.218 283.411 C 364.533 304.345 338.401 315.868 310.634 315.858 C 299.436 315.858 288.514 313.913 278.081 310.232 C 326.402 259.102 368.812 214.278 370.159 212.996 L 410.347 173.608 Z M 310.634 353.24 C 289.75 353.236 269.696 348.392 250.965 338.926 C 259.212 330.2 267.471 321.459 275.583 312.876 C 286.781 317.029 298.567 319.153 310.634 319.153 C 339.226 319.162 366.137 307.298 386.407 285.742 C 406.676 264.183 417.835 235.566 417.823 205.16 C 417.823 193.455 416.144 182.012 412.896 171.108 L 438.431 146.085 C 446.07 164.685 449.98 184.496 449.983 205.045 C 449.983 286.756 387.471 353.236 310.634 353.24 Z" style={{ strokeWidth: '1px' }}></path>
+                    <svg className="h-6 w-6" viewBox="130 360 85 100" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                      <g transform="matrix(1, 0, 0, 1, 112.069527, 358.127716)">
+                        <path d="M64.3,63.2c-2.3,3.2-5,7.2-7.9,11.3l14.9,20.8c1.6,2.3,4.8,2.7,7,1l4.5-3.5c2.2-1.7,2.5-4.9,0.7-7L64.3,63.2z"/>
+                        <path d="M33.6,49.9l3-0.3c1.1-0.1,2.1,0.4,2.8,1.2l4,5.6c2.5-3,4.9-6.1,7.3-9.2L48,44c-0.7-0.8-0.9-2-0.5-3l1.1-2.9   c1.7-4.6,0.9-9.7-2.1-13.6l-16-20.6c-1.3-1.7-3.7-1.9-5.4-0.5c-1.5,1.3-1.6,3.7-0.4,5.2l13.2,17c0.9,1.2,0.6,2.9-0.7,3.7   c-1.1,0.7-2.6,0.3-3.5-0.7L20.6,11.6c-1.3-1.7-3.7-1.9-5.4-0.5c-1.5,1.3-1.6,3.7-0.4,5.2l13.2,17c0.9,1.2,0.6,2.9-0.7,3.7   c-1.1,0.7-2.6,0.3-3.5-0.7L10.8,19.5c-1.2-1.6-3.5-2.1-5.2-0.9c-1.8,1.2-2.1,3.7-0.8,5.3l16.1,20.6C23.9,48.4,28.7,50.4,33.6,49.9z   "/>
+                        <path d="M92.9,7.3c-0.9-2.3-4-2.8-5.5-0.8L57.7,45.2c-9.2,12-17.5,22-27.5,33.3l-5.7,7c-1.8,2.2-1.4,5.5,0.9,7.3l4.5,3.4   c2.4,1.8,5.7,1.2,7.4-1.2c6.4-9.6,21.5-31.8,27.4-39.7l7,4.6c2.8,1.6,6.3,0.7,8-2c3.4-5.6,9.6-17.1,14.1-25.9   C98,23.9,95.2,13.4,92.9,7.3z"/>
+                      </g>
                     </svg>
                 </button>
                 <DarkModeToggle isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
@@ -165,7 +409,7 @@
       );
 
       const Disclaimer = ({ onDismiss }) => (
-        <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-500 rounded-r-lg shadow-md" role="alert">
+        <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-500 rounded-r-lg shadow-md animate-fade-in" role="alert">
           <div className="flex">
             <div className="py-1">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="h-8 w-8 text-amber-500 dark:text-amber-400 mr-4 flex-shrink-0">
@@ -260,7 +504,7 @@
                 <button onClick={() => handleNoticeTypeChange('Krankmeldung')} className={`w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${noticeType === 'Krankmeldung' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>Krankmeldung</button>
                 <button onClick={() => handleNoticeTypeChange('Gesundmeldung')} className={`w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${noticeType === 'Gesundmeldung' ? 'bg-white dark:bg-slate-800 text-green-600 dark:text-green-400 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>Gesundmeldung</button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 <FormField label="Erster Krankheitstag" id="startDate" value={sicknessStartDate} onChange={e => setSicknessStartDate(e.target.value)} />
                 <div className="flex flex-col">
                     <FormField label="Letzter Krankheitstag (optional)" id="endDate" value={sicknessEndDate} onChange={e => setSicknessEndDate(e.target.value)} />
@@ -331,13 +575,15 @@
           
         return (
           <Card title="Details & Optionen">
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/30 rounded-lg text-sm text-blue-800 dark:text-blue-200 flex items-start space-x-3">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-blue-500 dark:text-blue-400 mt-1 flex-shrink-0">
-                <path fillRule="evenodd" d="M18.97 3.659a2.25 2.25 0 00-3.182 0l-10.5 10.5a.75.75 0 001.06 1.061l10.5-10.5a.75.75 0 011.06 0 2.25 2.25 0 010 3.182L6.75 18.75a3.75 3.75 0 11-5.303-5.303l7.219-7.22a.75.75 0 00-1.06-1.061l-7.22 7.22a5.25 5.25 0 007.424 7.424l10.5-10.5a3.75 3.75 0 00-5.303-5.303z" clipRule="evenodd" />
-              </svg>
-              <p>
-                <strong>Anhänge:</strong> Dokumente wie eine eAU oder ein Attest erst in Outlook anhängen.
-              </p>
+            <div style={{padding:'0.75rem', backgroundColor:'rgba(59, 130, 246, 0.1)', border:'1px solid rgba(59, 130, 246, 0.2)', borderRadius:'0.5rem', fontSize:'0.875rem', marginBottom:'1rem'}}>
+              <div style={{display: 'flex', gap: '0.75rem', alignItems: 'flex-start'}}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" style={{width: '1rem', height: '1rem', marginTop: '0.2rem', flexShrink: 0}}>
+                      <path d="M364.2 83.8c-24.4-24.4-64-24.4-88.4 0l-184 184c-42.1 42.1-42.1 110.3 0 152.4s110.3 42.1 152.4 0l152-152c10.9-10.9 28.7-10.9 39.6 0s10.9 28.7 0 39.6l-152 152c-64 64-167.6 64-231.6 0s-64-167.6 0-231.6l184-184c46.3-46.3 121.3-46.3 167.6 0s46.3 121.3 0 167.6l-176 176c-28.6 28.6-75 28.6-103.6 0s-28.6-75 0-103.6l144-144c10.9-10.9 28.7-10.9 39.6 0s10.9 28.7 0 39.6l-144 144c-6.7 6.7-6.7 17.7 0 24.4s17.7 6.7 24.4 0l176-176c24.4-24.4 24.4-64 0-88.4z"/>
+                  </svg>
+                  <p style={{margin:0}}>
+                      <strong>Anhänge:</strong> Dokumente wie eine eAU oder ein Attest erst in Outlook anhängen.
+                  </p>
+              </div>
             </div>
             <div>
               <label htmlFor="comments" className="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">Bemerkung / voraussichtliche Dauer</label>
@@ -627,7 +873,7 @@
             aria-labelledby="mensa-panel-title"
           >
             <div 
-              className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95 opacity-0 animate-scale-in"
+              className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95 opacity-0 animate-[scale-in_0.2s_ease-out_forwards]"
               onClick={(e) => e.stopPropagation()}
             >
               <header className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
@@ -704,13 +950,6 @@
                 </footer>
               )}
             </div>
-            <style>{`
-                @keyframes scale-in {
-                    from { transform: scale(0.95); opacity: 0; }
-                    to { transform: scale(1); opacity: 1; }
-                }
-                .animate-scale-in { animation: scale-in 0.2s ease-out forwards; }
-            `}</style>
           </div>
         );
       };
@@ -763,6 +1002,8 @@
             return false; // Default to light theme
         });
         const [isMensaPanelOpen, setIsMensaPanelOpen] = useState(false);
+        const [isTermsAccepted, setIsTermsAccepted] = useState(false);
+        const [isExpertModalOpen, setIsExpertModalOpen] = useState(false);
 
         useEffect(() => {
             if (isDarkMode) {
@@ -773,6 +1014,18 @@
                 localStorage.setItem('theme', 'light');
             }
         }, [isDarkMode]);
+
+        useEffect(() => {
+          const handleKeyDown = (e) => {
+            // Ctrl + Shift + X to toggle Expert Mode
+            if (e.ctrlKey && e.shiftKey && (e.key === 'X' || e.key === 'x')) {
+              e.preventDefault();
+              setIsExpertModalOpen(prev => !prev);
+            }
+          };
+          window.addEventListener('keydown', handleKeyDown);
+          return () => window.removeEventListener('keydown', handleKeyDown);
+        }, []);
 
         const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
         
@@ -911,8 +1164,7 @@ Mit freundlichen Grüßen
           };
           
           let body = renderTemplate(bodyTemplate.trim(), context);
-          body = body.replace(/^\s*[\r\n]/gm, ''); // Removes empty lines
-
+          
           const subject = renderTemplate(EMAIL_SUBJECT_TEMPLATE, context);
           const toList = selectedRecipients.map(r => r.email).filter(Boolean).filter(e => e.trim() !== '');
           
@@ -926,10 +1178,12 @@ Mit freundlichen Grüßen
         }, [generatedEmail.body]);
 
         return (
-          <div className="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-300 font-sans transition-colors duration-300">
+          <div className="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-300 font-sans transition-colors duration-300 flex flex-col">
+            <TermsModal onAccept={() => setIsTermsAccepted(true)} />
+            <ExpertModal isOpen={isExpertModalOpen} onClose={() => setIsExpertModalOpen(false)} />
             <Header isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} onMensaToggle={() => setIsMensaPanelOpen(true)} />
             <MensaPanel isOpen={isMensaPanelOpen} onClose={() => setIsMensaPanelOpen(false)} />
-            <main className="container mx-auto p-4 lg:p-8">
+            <main className={`container mx-auto p-4 lg:p-8 transition-all duration-500 flex-grow ${isTermsAccepted ? 'blur-none' : ''}`}>
               {disclaimerVisible && <Disclaimer onDismiss={handleDismissDisclaimer} />}
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                 <div className="lg:col-span-3 space-y-8">
@@ -954,6 +1208,11 @@ Mit freundlichen Grüßen
                 </div>
               </div>
             </main>
+            <footer className="py-4 text-center opacity-10 hover:opacity-100 transition-opacity duration-500">
+               <button onClick={() => setIsExpertModalOpen(true)} className="text-xs font-mono text-slate-500">
+                  v1.0.0 (Expert Mode: Ctrl+Shift+X)
+               </button>
+            </footer>
           </div>
         );
       }
