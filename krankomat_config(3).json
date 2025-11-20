@@ -1,0 +1,36 @@
+{
+  "userData": {
+    "firstName": "Max",
+    "lastName": "Mustermann",
+    "studentId": "1234567",
+    "email": "max.mustermann@example.com",
+    "studyProgram": "E-Government"
+  },
+  "recipients": [
+    {
+      "id": 1,
+      "anrede": "Sehr geehrte Damen und Herren vom ZPD",
+      "module": "ZPD (Zentrum für Personaldienste)",
+      "isSelected": true,
+      "email": ""
+    },
+    {
+      "id": 2,
+      "anrede": "Sehr geehrter Herr Angelstein",
+      "module": "Projektmanagement",
+      "isSelected": false,
+      "email": ""
+    }
+  ],
+  "sicknessStartDate": "20.11.2025",
+  "sicknessEndDate": "",
+  "absenceReasons": {
+    "lecture": true,
+    "internship": false,
+    "exam": false,
+    "partialDay": false
+  },
+  "details": {
+    "comments": "nur 1 Tag krank"
+  }
+}
