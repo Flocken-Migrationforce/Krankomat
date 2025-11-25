@@ -6,6 +6,7 @@ import win32com.client as win32
 import os
 import csv
 import sqlite3
+import pdb # zum Debuggen
 
 # ----------------- Dateipfade / User-Config Dateien -----------------
 TEMPLATE_BODY_PATH = "template.txt"
@@ -18,6 +19,51 @@ USER_MATRIKEL_PATH = "Meine_Matrikelnummer.txt"
 USER_STUDIENGANG_PATH = "Mein_Studiengang.txt"
 USER_STUNDENPLAN_PATH = "Stundenplan.txt"
 
+def wochentag_bestimmen():
+    # ----------------- Stundenplan.txt nutzt Empfaenger.txt zur automatischen Empfängerlisten-Erstellung für heutigen Wochentag -----------------
+    #2511250849FF
+    # Wochentag als String
+    wochentag = datetime.datetime.today().strftime("%A")  # "Monday", "Tuesday" etc.
+    wochentage_de = {
+        "Monday": "Montag",
+        "Tuesday": "Dienstag",
+        "Wednesday": "Mittwoch",
+        "Thursday": "Donnerstag",
+        "Friday": "Freitag"
+    }
+    heute_de = wochentage_de.get(wochentag, "")
+    return heute_de
+
+def kurse_wochentag():
+    # 2. Stundenplan laden und Kurse des heutigen Tages finden
+    stundenplan_kurse = []
+    heute_de = wochentag_bestimmen()
+    with open("Stundenplan.txt", "r", encoding="utf-8") as f:
+        for line in f:
+            tag, kurse_str = line.strip().split(";", 1)
+            if tag == heute_de:
+                stundenplan_kurse = [k.strip() for k in kurse_str.split(",") if k.strip()]
+                return stundenplan_kurse
+
+def empfaenger_laden():
+    # 3. Empfänger laden
+    empfaenger_liste = []
+    with open("Empfaenger.txt", "r", encoding="utf-8") as f:
+        for line in f:
+            name, kurs, email = line.strip().split(";")
+            empfaenger_liste.append({"name": name, "kurs": kurs, "email": email})
+    return empfaenger_liste
+def empfaenger_aktivieren_mittels_stundenplan():
+    # 4. Checkboxen aktivieren je nach Kursmatch
+    # Beispiel: checkbox_dict ist ein Dictionary der Checkboxen mit Schlüssel als Empfängername oder Email
+    empfaenger_liste = empfaenger_laden()
+    for empfaenger in empfaenger_liste:
+        if empfaenger["kurs"] in stundenplan_kurse:
+            # checkbox_dict[empfaenger_key].select()  # Checkbox aktivieren
+            print(f"Checkbox aktivieren für {empfaenger['name']} mit Kurs {empfaenger['kurs']}")
+        else:
+            # checkbox_dict[empfaenger_key].deselect()  # Checkbox deaktivieren
+            print(f"Checkbox deaktivieren für {empfaenger['name']} mit Kurs {empfaenger['kurs']}")
 
 def load_file_text(path, default=None):
     if not os.path.exists(path):
@@ -80,8 +126,71 @@ def generate_anreden(anrede_list):
         # if not line.endswith(","):
         #     line += ","
         lines.append(line)
+    # lines[0] = lines[0].upper() # Falsch.
+    if lines:
+        lines[0] = lines[0][0].upper() + lines[0][1:] if lines[0] else lines[0]
     return ",\n".join(lines)
 
+
+def aktiviere_empfaenger_checkboxen(self, heute_tag):
+    stundenplan_inhalt = load_file_text("Stundenplan.txt", default="")
+    stundenplan_kurse = []
+    for line in stundenplan_inhalt.splitlines():
+        if not line.strip():
+            continue
+        tag, kurse_str = line.split(";", 1)
+        if tag == heute_tag:
+            stundenplan_kurse = [k.strip() for k in kurse_str.split(",") if k.strip()]
+            break
+
+    empfaenger_inhalt = load_file_text("Empfaenger.txt", default="")
+    for line in empfaenger_inhalt.splitlines():
+        if not line.strip():
+            continue
+        name, kurs, email = line.split(";")
+        kurs = kurs.strip()
+        # Prüfe, ob Empfaenger-Kurs akt. ist
+        if kurs in stundenplan_kurse:
+            # Checkbox aktivieren (BooleanVar in self.prof_vars z.B. key=name oder email)
+            if name in self.empfaenger_ausgewählte:
+                self.empfaenger_ausgewählte[name].set(True)
+        else:
+            if name in self.empfaenger_ausgewählte:
+                self.empfaenger_ausgewählte[name].set(False)
+
+def aktiviere_empfaenger_nach_wochentag(self):
+    # Wochentag auf Deutsch
+    wochentage_de = {
+        0: "Montag",
+        1: "Dienstag",
+        2: "Mittwoch",
+        3: "Donnerstag",
+        4: "Freitag",
+        5: "Samstag",
+        6: "Sonntag"
+    }
+    ## Heutigen Tag als Wochentag festlegen. 2511250855FF Vielleicht besser als Info aus "Erster Krankheitstag" nehmen.
+    heute_index = datetime.datetime.now().weekday()
+    heute_tag = wochentage_de.get(heute_index, "")
+
+    ## Wochentag aus "Erster Krankheitstag" nehmen    # Utility to be checked 2511250855FF
+    # heute_tag = self.wochentag_var.get()  # Statt datetime.now()
+
+    ### Stundenplan.txt auslesen und Kurse des heutigen Wochentags in "stundenplan_kurse" speichern.
+    stundenplan_kurse = []
+    try:
+        with open("Stundenplan.txt", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                tag, kurse_str = line.split(";", 1)
+                if tag == heute_tag:
+                    stundenplan_kurse = [k.strip() for k in kurse_str.split(",") if k.strip()]
+                    break
+    except Exception as e:
+        print("Fehler beim Laden des Stundenplans:", e)
+        stundenplan_kurse = []
 
 class ToolTip:
     def __init__(self, widget, text):
@@ -132,13 +241,13 @@ class KrankmeldungApp(tk.Tk):
         emp_rows = read_empfaenger(EMPFAENGER_PATH)
 
         # Platzhalter-Variable "empfaenger" ersetzen mit "Anrede" aus Empfaenger.txt
-        self.greeting_items = []
+        self.daten_empfaenger = []
         for r in emp_rows:
             anrede = (r.get("Anrede") or "").strip()
             modul = (r.get("Modul") or "").strip()
             email_raw = (r.get("Email-Adresse") or r.get("Email") or "").strip()
             email = parse_email_cell(email_raw)
-            self.greeting_items.append({
+            self.daten_empfaenger.append({
                 "anrede": anrede,
                 "modul": modul,
                 "email": email
@@ -168,8 +277,8 @@ class KrankmeldungApp(tk.Tk):
 
         # Setze Standardwerte und Events:
         # Linkes Panel: "Vorlesungszeit." ankreuzen
-        if "Vorlesungszeit." in self.left_vars:
-            self.left_vars["Vorlesungszeit."].set(True)
+        if "Vorlesungszeit." in self.checkboxes_left_aktiv:
+            self.checkboxes_left_aktiv["Vorlesungszeit."].set(True)
 
         # Center Panel: Erste ZPD Checkbox ankreuzen (z.B. über greeting_items)
         # zpd_anrede = self.greeting_items[0]["anrede"] if self.greeting_items else None
@@ -221,7 +330,7 @@ class KrankmeldungApp(tk.Tk):
             conn = sqlite3.connect("daten.db")
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT vorname, nachname, datum, matrikelnummer, empfaenger_list FROM krankmeldungen ORDER BY id DESC LIMIT 1")
+                "SELECT vorname, nachname, datum, matrikelnummer, empfaenger_liste FROM krankmeldungen ORDER BY id DESC LIMIT 1")
             row = cursor.fetchone()
             conn.close()
             if row:
@@ -235,13 +344,13 @@ class KrankmeldungApp(tk.Tk):
                 self.matrikel_var.set(matrikel)
 
                 # Alle Empfänger-Dropboxen aus = False
-                for var in self.prof_vars.values():
+                for var in self.empfaenger_ausgewählte.values():
                     var.set(False)
                 # gespeicherte Empfänger wieder auf True setzen
                 gespeicherte_empfaenger = empfaenger_str.split(",") if empfaenger_str else []
                 for anrede in gespeicherte_empfaenger:
-                    if anrede in self.prof_vars:
-                        self.prof_vars[anrede].set(True)
+                    if anrede in self.empfaenger_ausgewählte:
+                        self.empfaenger_ausgewählte[anrede].set(True)
         except Exception as e:
             print("Fehler beim Laden aus DB:", e)
 
@@ -355,16 +464,16 @@ class KrankmeldungApp(tk.Tk):
     def _build_left_panel(self):
         left = ttk.LabelFrame(self, text="Heute verpasse ich krankheitsbedingt ...", padding=6)
         left.grid(row=1, column=0, sticky="nsw", padx=6, pady=6)
-        opts = [
+        checkboxes_left_titles = [
             "Vorlesungszeit.",
             "Berufspraxis.",
             "eine Prüfungsleistung / Klausur / Präsentation.",
             "die restlichen Stunden des Tages.\nHeute Morgen war ich aber schon da.\n(\"Krank im Dienst\")"
         ]
-        self.left_vars = {}
+        self.checkboxes_left_aktiv = {}
 
         def on_vorlesungszeit_toggle():
-            pass
+            self._empfaenger_auf_basis_stundenplan_auswählen()
 
         def on_Prüfungstag_toggle():
             pass
@@ -389,14 +498,16 @@ class KrankmeldungApp(tk.Tk):
         #             self.prof_vars["Berufspraxis."].set(False)
         #     self._update_preview()
 
-        for opt in opts:
+        for opt in checkboxes_left_titles:
             v = tk.BooleanVar()
             if opt == "Berufspraxis.":
                 cb = ttk.Checkbutton(left, text=opt, variable=v, command=on_berufspraxis_toggle)
+            if opt == "Vorlesungszeit.":
+                cb = ttk.Checkbutton(left, text=opt, variable=v, command=self._empfaenger_auf_basis_stundenplan_auswählen)
             else:
                 cb = ttk.Checkbutton(left, text=opt, variable=v, command=self._update_preview)
             cb.pack(anchor="w", pady=2)
-            self.left_vars[opt] = v
+            self.checkboxes_left_aktiv[opt] = v
 
     def _build_center_panel(self):
         center = ttk.LabelFrame(self, text="Krankmelden bei", padding=6)
@@ -421,10 +532,10 @@ class KrankmeldungApp(tk.Tk):
         scrollbar.grid(row=0, column=1, sticky="ns")
 
         # Checkboxen aufbauen:
-        self.prof_vars = {}
+        self.empfaenger_ausgewählte = {}
         row_idx = 0
 
-        for item in self.greeting_items:
+        for item in self.daten_empfaenger:
             modul = item["modul"]
             email = item["email"]
             anrede = item["anrede"]
@@ -435,7 +546,7 @@ class KrankmeldungApp(tk.Tk):
             var.trace_add('write', lambda *args, a=anrede: self._update_preview())
             cb = ttk.Checkbutton(scrollable_frame, text=label, variable=var)
             cb.grid(row=row_idx, column=0, sticky="w", pady=2)
-            self.prof_vars[anrede] = var
+            self.empfaenger_ausgewählte[anrede] = var
             row_idx += 1
 
         # Attribute sichern – dann existiert scrollable_frame global
@@ -446,17 +557,17 @@ class KrankmeldungApp(tk.Tk):
 
 
         # --- Automatische Auswahl anhand Stundenplan.txt ---
-        self._auto_select_by_stundenplan()
+        self._empfaenger_auf_basis_stundenplan_auswählen()
 
-    def _auto_select_by_stundenplan(self):
-        """Wählt automatisch Empfänger anhand von Stundenplan.txt und aktuellem Wochentag."""
+    def _empfaenger_auf_basis_stundenplan_auswählen(self):
+        """Wählt Empfänger anhand von Stundenplan.txt und aktuellem Wochentag."""
 
         if not os.path.exists(USER_STUNDENPLAN_PATH):
             return
 
         # Krankheitsbeginn-Datum aus Eingabefeld lesen
         datum_text = self.entry_datum.get().strip()
-
+        print(datum_text)
         try:
             # Datum aus Format TT.MM.JJJJ lesen
             krank_datum = datetime.datetime.strptime(datum_text, "%d.%m.%Y").date()
@@ -475,29 +586,38 @@ class KrankmeldungApp(tk.Tk):
             6: "Sonntag",
         }
         heute = wochentag_map[krank_datum.weekday()]
-
+        print(heute)
         # Stundenplanzeilen einlesen
-        passende_module = []
+        kurse_heute = []
         with open(USER_STUNDENPLAN_PATH, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
+                print(line)
                 if not line:
                     continue
                 parts = line.split(";")
                 if len(parts) >= 2:
                     tag, modul = parts[0].strip(), parts[1].strip()
                     if tag.lower() == heute.lower():
-                        passende_module.append(modul)
-
+                        # kurse_heute.append(modul) # ","-Separierung noch notwendig, die einzelnen Kurse aufsplitten.
+                        kurse_in_einzelteile = [k.strip() for k in modul.split(",") if k.strip()]
+                        kurse_heute.extend(kurse_in_einzelteile)
+                        print(kurse_heute)
+        print(self.daten_empfaenger)
+        print(kurse_heute)
         # Checkboxen automatisch aktivieren, wenn Modulnamen passen
-        for item in self.greeting_items:
+        for item in self.daten_empfaenger:
             modulname = item.get("modul", "").strip()
+            # print(modulname)
             anrede = item.get("anrede", "").strip()
-            for pmod in passende_module:
-                if pmod.lower() in modulname.lower():
-                    if anrede in self.prof_vars:
-                        self.prof_vars[anrede].set(True)
+            # print(anrede)
+            for item2 in kurse_heute:
+                print(item2)
+                if item2.lower() in modulname.lower():
+                    if anrede in self.empfaenger_ausgewählte:
+                        self.empfaenger_ausgewählte[anrede].set(True)
                         break
+
 
     def _build_right_panel(self):
         right = ttk.LabelFrame(self, text="Details / Optionen", padding=6)
@@ -605,7 +725,7 @@ class KrankmeldungApp(tk.Tk):
         name_str = f"Name: {name_field}" if vorname else f"Name:{name_field}"
 
         anreden_auswahl = []
-        for anrede, var in self.prof_vars.items():
+        for anrede, var in self.empfaenger_ausgewählte.items():
             if var.get():
                 anreden_auswahl.append(anrede.strip())
 
@@ -624,7 +744,7 @@ class KrankmeldungApp(tk.Tk):
             "DatumGesund": self.entry_datum_2.get().strip() or "",
             "attest": "ja" if self.attest_var.get() else "nein",
             "eAU": "ja" if (self.eau_var.get() and self.gkv_var.get() and self.attest_var.get()) else ("ja" if self.eau_var.get() else "nein"),
-            "prüfungstag": "ja" if self.left_vars["eine Prüfungsleistung / Klausur / Präsentation."].get() else "nein",
+            "prüfungstag": "ja" if self.checkboxes_left_aktiv["eine Prüfungsleistung / Klausur / Präsentation."].get() else "nein",
             "unfall": "ja" if self.unfall_var.get() else "nein",
             "namefield": name_str,
             "studiengang": self.user_studiengang,
@@ -642,9 +762,10 @@ class KrankmeldungApp(tk.Tk):
         self.preview.delete("1.0", tk.END)
         self.preview.insert(tk.END, "Hier steht der Text für die Vorschau")
         ctx = self._gather_context()
-
-        anreden_auswahl = [anrede.strip() for anrede, var in self.prof_vars.items() if var.get()]
-
+        # ",\n".join([anrede.strip() for anrede, var in self.empfaenger_ausgewählte.items() if var.get()])
+        anreden_auswahl = [anrede.strip() for anrede, var in self.empfaenger_ausgewählte.items() if var.get()]
+        # anreden_auswahl = ",\n".join([anrede.strip() for anrede, var in self.empfaenger_ausgewählte.items() if var.get()])
+        print(anreden_auswahl)
         anrede_text = ",\n".join(anreden_auswahl)
         ctx["anrede"] = anrede_text
 
@@ -666,31 +787,13 @@ class KrankmeldungApp(tk.Tk):
 
         to_list = []
         cc_list = []
-        """
-        # 2510262246OUT.
-        selected = [a for a, v in self.prof_vars.items() if v.get()]
-        to_list, cc_list = [], []
-
-        if selected:
-            # Erster Empfänger ist Hauptempfänger; alle weiteren in CC.
-            first = selected[0]
-            primary = next((g for g in self.greeting_items if g["anrede"] == first), None)
-            if primary and primary.get("email"):
-                cc_list.append(primary["email"]) #2510262244OLD: war mal to_list.append. Machte keinen Sinn für die Business Requirements.
-
-            # Alle weiteren Empfänger als CC
-            # for a in selected[1:]:
-            #     g = next((g for g in self.greeting_items if g["anrede"] == a), None)
-            #     if g and g.get("email"):
-            #         cc_list.append(g["email"])
-        """
 
 
         # Alle Anwender-Auswahlen im mittleren Panel als CC, auch ZPD nicht doppeln
         for anrede in anreden_auswahl:
             # if zpd and anrede == zpd.get("anrede"):
             #     continue  # ZPD nicht nochmal in CC
-            g = next((g for g in self.greeting_items if g["anrede"] == anrede), None)
+            g = next((g for g in self.daten_empfaenger if g["anrede"] == anrede), None)
             if g and g.get("email"):
                 cc_list.append(g["email"])
 
@@ -765,25 +868,27 @@ class KrankmeldungApp(tk.Tk):
 
 
     def _prepare_emails(self, send_now=False):
-        # initial_anrede = "Sehr geehrte Damen und Herren vom ZPD"
-        if self.template_body is not None:
-            self.template_body = self.template_body.replace("{anrede}", anrede)
-
         self.update_idletasks()  # alle GUI-Ereignisse abarbeiten
         self._update_preview()  # Kontext inkl. Empfängerliste neu generieren
 
 
         ctx = self._gather_context()
 
-        empfaenger_greetings = []
-        for anrede, var in self.prof_vars.items():
-            if var.get():
-                empfaenger_greetings.append(anrede.strip())
+        greeting_text = [anrede.strip() for anrede, var in self.empfaenger_ausgewählte.items() if var.get()]
+        # greeting_text = generate_anreden(empfaenger_greetings)
+        if greeting_text:
+            greeting_text[0] = greeting_text[0][0].upper() + greeting_text[0][1:] if greeting_text[0] else greeting_text[0]
 
-        greeting_text = generate_anreden(empfaenger_greetings)
         ctx["empfаenger"] = greeting_text
 
-        body = render_template(self.template_body, ctx)
+        if self.template_body is not None:
+            filled_template_body = self.template_body.replace("{anrede}", ",\n".join(greeting_text))
+
+        # Erzeuge eine lokale Kopie der Vorlage zum Ersetzen
+        local_template = self.template_body if self.template_body else ""
+        filled_template = local_template.replace("{anrede}", ",\n".join(greeting_text))
+
+        body = render_template(filled_template, ctx)
 
 
 
@@ -791,18 +896,21 @@ class KrankmeldungApp(tk.Tk):
         cc_list = []
 
         # Alle markierten Empfänger aus self.prof_vars ermitteln
-        selected = [a for a, v in self.prof_vars.items() if v.get()]
+        selected = [a for a, v in self.empfaenger_ausgewählte.items() if v.get()]
+        print(selected)
 
         if selected:
             # Erster markierter Empfänger ist Hauptempfänger (TO)
             first = selected[0]
-            first_obj = next((g for g in self.greeting_items if g["anrede"] == first), None)
+
+            print(first)
+            first_obj = next((g for g in self.daten_empfaenger if g["anrede"] == first), None)
             if first_obj and first_obj.get("email"):
                 to_list.append(first_obj["email"])
 
             # Alle weiteren markierten Empfänger kommen in CC
             for a in selected[1:]:
-                g = next((g for g in self.greeting_items if g["anrede"] == a), None)
+                g = next((g for g in self.daten_empfaenger if g["anrede"] == a), None)
                 if g and g.get("email"):
                     cc_list.append(g["email"])
 
