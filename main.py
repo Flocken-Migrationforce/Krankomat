@@ -472,8 +472,19 @@ class KrankmeldungApp(tk.Tk):
         ]
         self.checkboxes_left_aktiv = {}
 
+
+
+
         def on_vorlesungszeit_toggle():
-            self._empfaenger_auf_basis_stundenplan_auswählen()
+            if self.checkboxes_left_aktiv["Vorlesungszeit."].get():
+                # Checkbox wird aktiviert - Empfänger anhand Stundenplan auswählen.
+                self._empfaenger_auf_basis_stundenplan_auswählen()
+                return
+            else:
+                # Checkbox wird deaktiviert - Empfänger-Checkboxen für heutige Kurse deaktivieren.
+                if not os.path.exists(USER_STUNDENPLAN_PATH):
+                    return
+                self._empfaenger_auf_basis_stundenplan_wegwählen()
 
         def on_Prüfungstag_toggle():
             pass
@@ -484,26 +495,15 @@ class KrankmeldungApp(tk.Tk):
         def on_KrankImDienst_toggle():
             pass
 
-        # NOCH NICHT FERTIG: FF2511162123
-        #     if self.left_vars["Berufspraxis."].get():
-        #         if "Ausbildungsleitung" in self.prof_vars:
-        #             self.prof_vars["Ausbildungsleitung"].set(True)
-        #         email = self.load_email_from_berufspraxis_txt()
-        #         if "Berufspraxis." in self.prof_vars:
-        #             self.prof_vars["Berufspraxis."].set(True)
-        #     else:
-        #         if "Ausbildungsleitung" in self.prof_vars:
-        #             self.prof_vars["Ausbildungsleitung"].set(False)
-        #         if "Berufspraxis." in self.prof_vars:
-        #             self.prof_vars["Berufspraxis."].set(False)
-        #     self._update_preview()
+
+
 
         for opt in checkboxes_left_titles:
             v = tk.BooleanVar()
             if opt == "Berufspraxis.":
                 cb = ttk.Checkbutton(left, text=opt, variable=v, command=on_berufspraxis_toggle)
             if opt == "Vorlesungszeit.":
-                cb = ttk.Checkbutton(left, text=opt, variable=v, command=self._empfaenger_auf_basis_stundenplan_auswählen)
+                cb = ttk.Checkbutton(left, text=opt, variable=v, command=on_vorlesungszeit_toggle)
             else:
                 cb = ttk.Checkbutton(left, text=opt, variable=v, command=self._update_preview)
             cb.pack(anchor="w", pady=2)
@@ -616,6 +616,66 @@ class KrankmeldungApp(tk.Tk):
                 if item2.lower() in modulname.lower():
                     if anrede in self.empfaenger_ausgewählte:
                         self.empfaenger_ausgewählte[anrede].set(True)
+                        break
+
+
+    def _empfaenger_auf_basis_stundenplan_wegwählen(self):
+        """Entfernt Empfänger anhand von Stundenplan.txt und aktuellem Wochentag."""
+
+        if not os.path.exists(USER_STUNDENPLAN_PATH):
+            return
+
+        # Krankheitsbeginn-Datum aus Eingabefeld lesen
+        datum_text = self.entry_datum.get().strip()
+        print(datum_text)
+        try:
+            # Datum aus Format TT.MM.JJJJ lesen
+            krank_datum = datetime.datetime.strptime(datum_text, "%d.%m.%Y").date()
+        except ValueError:
+            # Falls Format falsch oder leer ist, abbrechen
+            return
+
+        # Wochentag vom eingegebenen Datum (nicht 'heute')
+        wochentag_map = {
+            0: "Montag",
+            1: "Dienstag",
+            2: "Mittwoch",
+            3: "Donnerstag",
+            4: "Freitag",
+            5: "Samstag",
+            6: "Sonntag",
+        }
+        heute = wochentag_map[krank_datum.weekday()]
+        print(heute)
+        # Stundenplanzeilen einlesen
+        kurse_heute = []
+        with open(USER_STUNDENPLAN_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                print(line)
+                if not line:
+                    continue
+                parts = line.split(";")
+                if len(parts) >= 2:
+                    tag, modul = parts[0].strip(), parts[1].strip()
+                    if tag.lower() == heute.lower():
+                        # kurse_heute.append(modul) # ","-Separierung noch notwendig, die einzelnen Kurse aufsplitten.
+                        kurse_in_einzelteile = [k.strip() for k in modul.split(",") if k.strip()]
+                        kurse_heute.extend(kurse_in_einzelteile)
+                        print(kurse_heute)
+        print(self.daten_empfaenger)
+        print(kurse_heute)
+        # Checkboxen automatisch aktivieren, wenn Modulnamen passen
+        for item in self.daten_empfaenger:
+            modulname = item.get("modul", "").strip()
+            # print(modulname)
+            anrede = item.get("anrede", "").strip()
+            # print(anrede)
+            for item2 in kurse_heute:
+                print(item2)
+                if item2.lower() in modulname.lower():
+                    if anrede in self.empfaenger_ausgewählte:
+                        self.empfaenger_ausgewählte[anrede].set(False)
                         break
 
 
