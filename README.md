@@ -1,3 +1,4 @@
+[README.md](https://github.com/user-attachments/files/23685510/README.md)
 # Krankomat
 Der Krankomat ist ein Krankmelde-Programm für E-Government-Studierende der HAW.  
 Damit kann man sich schnell und effizient krank- oder gesundmelden beim ZPD.

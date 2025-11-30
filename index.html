@@ -4,1223 +4,314 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Krankomat Modern</title>
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.tailwindcss.com https://raw.githubusercontent.com;">
+    <!-- Load Tailwind CDN first -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind -->
     <script>
       tailwind.config = {
         darkMode: 'class',
         theme: {
           extend: {
+            // THEME CONFIGURATION
+            // You can change the app's color scheme here.
+            // The app uses 'indigo' as the primary brand color and 'slate' for backgrounds/text.
+            // To change the colors, replace the Hex codes below.
+            colors: {
+              indigo: {
+                50: '#eef2ff',
+                100: '#e0e7ff',
+                200: '#c7d2fe',
+                300: '#a5b4fc',
+                400: '#818cf8',
+                500: '#6366f1',
+                600: '#4f46e5', // Main Brand Color (Buttons, Icons)
+                700: '#4338ca',
+                800: '#3730a3',
+                900: '#312e81',
+                950: '#1e1b4b',
+              },
+              slate: {
+                50: '#f8fafc', // Light mode background
+                100: '#f1f5f9',
+                200: '#e2e8f0',
+                300: '#cbd5e1',
+                400: '#94a3b8',
+                500: '#64748b',
+                600: '#475569',
+                700: '#334155',
+                800: '#1e293b', // Dark mode background
+                900: '#0f172a', // Darker background
+                950: '#020617',
+              }
+            },
             animation: {
               'scale-in': 'scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
               'fade-in': 'fade-in 0.5s ease-out forwards',
             }
           },
         },
+        // Safelist classes that are added dynamically via JS to ensure they are generated
+        safelist: [
+          'translate-x-1',
+          'translate-x-7'
+        ],
         plugins: [],
       }
     </script>
-    <style>
-      body {
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-      }
-      
-      @keyframes scale-in {
-          from { transform: scale(0.95); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-      }
-      
-      @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-      }
-      
-      /* Scrollbar styling for terms */
-      .terms-scroll::-webkit-scrollbar {
-        width: 8px;
-      }
-      .terms-scroll::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .terms-scroll::-webkit-scrollbar-thumb {
-        background-color: rgba(156, 163, 175, 0.5);
-        border-radius: 4px;
-      }
-      .terms-scroll::-webkit-scrollbar-thumb:hover {
-        background-color: rgba(156, 163, 175, 0.8);
-      }
-    </style>
-    <!-- React and ReactDOM from CDN -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <!-- Babel Standalone for JSX/TSX transpilation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<link rel="stylesheet" href="/index.css">
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
-  }
-}
-</script>
+    <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
+  <body class="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-300 font-sans transition-colors duration-300 flex flex-col">
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
 
-    <script type="text/babel">
-      // All application code is consolidated into this single script block.
-      // The browser will transpile and run it on the fly thanks to Babel.
-      const { useState, useEffect, useMemo, useCallback } = React;
+    <!-- Modals -->
+    <div id="terms-modal-container"></div>
+    <div id="expert-modal-container"></div>
+    <div id="mensa-modal-container"></div>
 
-      // --- CONFIGURATION ---
-      // Change this to true to disable the mandatory terms acceptance modal.
-      const SKIP_TERMS_CHECK = true; 
-
-      // --- UTILS ---
-      const todayFormatted = () => {
-        const today = new Date();
-        const day = String(today.getDate()).padStart(2, '0');
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const year = today.getFullYear();
-        return `${day}.${month}.${year}`;
-      };
-
-      const getDayOfWeek = (dateStr) => {
-        const parts = dateStr.match(/(\d{2})\.(\d{2})\.(\d{4})/);
-        if (!parts) return null;
-        const date = new Date(`${parts[3]}-${parts[2]}-${parts[1]}`);
-        if (isNaN(date.getTime())) return null;
-        const days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-        return days[date.getDay()];
-      };
-
-      const renderTemplate = (template, context) => {
-        return Object.entries(context).reduce((acc, [key, value]) => {
-            return acc.replace(new RegExp(`{${key}}`, 'g'), value || '');
-        }, template);
-      };
-
-      const copyToClipboard = (text, onComplete) => {
-        navigator.clipboard.writeText(text).then(() => {
-          if (onComplete) onComplete();
-        }).catch(err => {
-          console.error('Failed to copy text: ', err);
-        });
-      };
-
-      // --- CONSTANTS ---
-      const DEFAULT_USER_DATA = {
-        firstName: 'Max',
-        lastName: 'Mustermann',
-        studentId: '1234567',
-        email: 'max.mustermann@example.com',
-        studyProgram: 'E-Government',
-      };
-
-      const RECIPIENTS_DATA_STRUCTURE = [
-        { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'ZPD (Zentrum für Personaldienste)', isSelected: true },
-        { id: 2, anrede: 'Sehr geehrter Herr Angelstein', module: 'Projektmanagement', isSelected: true },
-      ];
-
-      const TIMETABLE_DATA = [
-          { day: 'Montag', module: 'IT-Projektmanagement' },
-          { day: 'Dienstag', module: 'Grundlagen der BWL' },
-          { day: 'Mittwoch', module: 'Datenbanken' },
-          { day: 'Donnerstag', module: 'Software Engineering' },
-          { day: 'Freitag', module: 'IT-Projektmanagement' },
-      ];
-
-      const EMAIL_SUBJECT_TEMPLATE = "{art} E-Gov 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]";
-      
-      // --- COMPONENTS ---
-      const TermsModal = ({ onAccept }) => {
-        const [isOpen, setIsOpen] = useState(false);
-        // This matches the date in your provided text file, acting as a version control
-        const TERMS_VERSION = '20.11.2025'; 
-        const STORAGE_KEY = 'krankomat_agb_accepted_version';
-
-        useEffect(() => {
-          // Bypass check if configured
-          if (SKIP_TERMS_CHECK) {
-            if (onAccept) onAccept();
-            return;
-          }
-
-          const acceptedVersion = localStorage.getItem(STORAGE_KEY);
-          // If the saved version doesn't match current version, show modal
-          if (acceptedVersion !== TERMS_VERSION) {
-            setIsOpen(true);
-          } else {
-            if (onAccept) onAccept();
-          }
-        }, [onAccept]);
-
-        const handleAccept = () => {
-          localStorage.setItem(STORAGE_KEY, TERMS_VERSION);
-          setIsOpen(false);
-          if (onAccept) onAccept();
-        };
-
-        if (!isOpen) return null;
-
-        return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all duration-500">
-             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full flex flex-col border border-slate-200 dark:border-slate-700 animate-[scale-in_0.3s_ease-out_forwards]">
-                <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-t-2xl text-center">
-                   <div className="mx-auto h-12 w-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center mb-4">
-                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-indigo-600 dark:text-indigo-400">
-                       <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
-                     </svg>
-                   </div>
-                   <h2 className="text-xl font-bold text-slate-800 dark:text-white">Nutzungsbedingungen</h2>
-                   <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">{TERMS_VERSION}</p>
-                </div>
-                
-                <div className="p-8 bg-white dark:bg-slate-800 text-center space-y-6">
-                   <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
-                     Bitte lesen Sie unsere Nutzungsbedingungen sorgfältig durch, bevor Sie fortfahren. Mit der Nutzung dieser Software akzeptieren Sie die Bedingungen.
-                   </p>
-                   
-                   <a 
-                     href="./NUTZUNGSBEDINGUNGEN.txt" 
-                     target="_blank"
-                     rel="noopener noreferrer"
-                     className="inline-flex items-center justify-center w-full px-4 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition-colors group border border-slate-200 dark:border-slate-600"
-                   >
-                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 mr-3 text-slate-500 group-hover:text-indigo-500 transition-colors">
-                       <path d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625z" />
-                       <path d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z" />
-                     </svg>
-                     Nutzungsbedingungen lesen
-                   </a>
-                </div>
-
-                <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl">
-                   <button 
-                     onClick={handleAccept}
-                     className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-lg hover:shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800"
-                   >
-                     Gelesen & Akzeptieren
-                   </button>
-                </div>
-             </div>
-          </div>
-        );
-      };
-
-      const ExpertModal = ({ isOpen, onClose }) => {
-        const [importError, setImportError] = useState(null);
-
-        if (!isOpen) return null;
-
-        const getCurrentConfig = () => {
-          return {
-            userData: JSON.parse(localStorage.getItem('krankomat_userData') || '{}'),
-            recipients: JSON.parse(localStorage.getItem('krankomat_recipients') || '[]'),
-            sicknessStartDate: JSON.parse(localStorage.getItem('krankomat_sicknessStartDate') || '""'),
-            sicknessEndDate: JSON.parse(localStorage.getItem('krankomat_sicknessEndDate') || '""'),
-            absenceReasons: JSON.parse(localStorage.getItem('krankomat_absenceReasons') || '{}'),
-            details: JSON.parse(localStorage.getItem('krankomat_details') || '{}')
-          };
-        };
-
-        const handleExport = () => {
-          const config = getCurrentConfig();
-          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2));
-          const downloadAnchorNode = document.createElement('a');
-          downloadAnchorNode.setAttribute("href", dataStr);
-          downloadAnchorNode.setAttribute("download", "krankomat_config.json");
-          document.body.appendChild(downloadAnchorNode);
-          downloadAnchorNode.click();
-          downloadAnchorNode.remove();
-        };
-
-        const handleFileUpload = (event) => {
-          setImportError(null);
-          const fileReader = new FileReader();
-          const file = event.target.files[0];
-
-          if (!file) return;
-
-          fileReader.readAsText(file, "UTF-8");
-          fileReader.onload = (e) => {
-            try {
-              const json = JSON.parse(e.target.result);
-              
-              // Basic structure validation/mapping
-              if (json.userData) localStorage.setItem('krankomat_userData', JSON.stringify(json.userData));
-              if (json.recipients) localStorage.setItem('krankomat_recipients', JSON.stringify(json.recipients));
-              if (json.sicknessStartDate) localStorage.setItem('krankomat_sicknessStartDate', JSON.stringify(json.sicknessStartDate));
-              if (json.sicknessEndDate) localStorage.setItem('krankomat_sicknessEndDate', JSON.stringify(json.sicknessEndDate));
-              if (json.absenceReasons) localStorage.setItem('krankomat_absenceReasons', JSON.stringify(json.absenceReasons));
-              if (json.details) localStorage.setItem('krankomat_details', JSON.stringify(json.details));
-              
-              window.location.reload();
-            } catch (err) {
-              setImportError("Fehler beim Importieren: Ungültige JSON-Datei.");
-              console.error(err);
-            }
-          };
-        };
-
-        return (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm transition-all" onClick={onClose}>
-             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-lg w-full border border-indigo-500/30 animate-[scale-in_0.2s_ease-out_forwards]" onClick={e => e.stopPropagation()}>
-                <div className="p-5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                   <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center">
-                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400">
-                       <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
-                     </svg>
-                     Expert Mode: Configuration
-                   </h2>
-                   <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                       <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
-                     </svg>
-                   </button>
-                </div>
-                <div className="p-6 space-y-6">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Backup & Template</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                      Download your current configuration as a JSON file. You can use this as a template for making changes or as a backup.
-                    </p>
-                    <button 
-                      onClick={handleExport}
-                      className="w-full py-2 bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-200 rounded-md text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-500 transition-colors flex items-center justify-center"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-2">
-                        <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z" clipRule="evenodd" />
-                      </svg>
-                      Download Current Config (JSON)
-                    </button>
-                  </div>
-
-                  <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/30">
-                    <h3 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-2">Import Configuration</h3>
-                    <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-3">
-                      Upload a JSON config file to overwrite the current application state. <strong>Warning: This will reload the page.</strong>
-                    </p>
-                    <label className="w-full flex flex-col items-center px-4 py-4 bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 rounded-lg shadow-sm tracking-wide uppercase border border-indigo-200 dark:border-slate-600 cursor-pointer hover:bg-indigo-50 dark:hover:bg-slate-600 transition-colors">
-                        <svg className="w-6 h-6" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                            <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" />
-                        </svg>
-                        <span className="mt-2 text-xs font-bold">Select JSON File</span>
-                        <input type='file' className="hidden" accept=".json" onChange={handleFileUpload} />
-                    </label>
-                    {importError && (
-                      <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">{importError}</p>
-                    )}
-                  </div>
-                </div>
-             </div>
-          </div>
-        );
-      };
-
-      const DarkModeToggle = ({ isDarkMode, toggleDarkMode }) => {
-        return (
-          <button
-            onClick={toggleDarkMode}
-            className="relative inline-flex items-center h-8 w-14 cursor-pointer rounded-full bg-slate-200 dark:bg-slate-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-            aria-label="Toggle dark mode"
-          >
-            <span className="sr-only">Toggle dark mode</span>
-            <span
-              className={`${
-                isDarkMode ? 'translate-x-7' : 'translate-x-1'
-              } absolute left-0 inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white shadow-lg transition-transform duration-300 ease-in-out`}
-            >
-              {isDarkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" fill="currentColor" className="h-4 w-4 text-indigo-500 transition-opacity duration-200">
-                  <path d="M223.5 32C100 32 0 132.3 0 256S100 480 223.5 480c60.6 0 115.5-24.2 155.8-63.4c5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-20 2.6-30.6 2.6c-96.8 0-175.5-78.8-175.5-176c0-65.8 36-123.1 89.3-153.3c6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"/>
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-amber-500 transition-opacity duration-200">
-                  <path fillRule="evenodd" d="M12 2.25c.414 0 .75.336.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.106a.75.75 0 010 1.06l-1.591 1.592a.75.75 0 01-1.061-1.061l1.591-1.591a.75.75 0 011.06 0zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.836 17.894a.75.75 0 011.06 0l1.591 1.591a.75.75 0 01-1.06 1.061l-1.591-1.591a.75.75 0 010-1.06zM12 18a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V18.75a.75.75 0 01.75-.75zM4.106 17.894a.75.75 0 010-1.06l1.591-1.591a.75.75 0 111.061 1.06l-1.591 1.592a.75.75 0 01-1.06 0zM3 12a.75.75 0 01.75-.75h2.25a.75.75 0 010 1.5H3.75A.75.75 0 013 12zM6.106 6.106a.75.75 0 011.06 0l1.591 1.591a.75.75 0 01-1.06 1.061L6.106 7.167a.75.75 0 010-1.06z" clipRule="evenodd" />
-                </svg>
-              )}
-            </span>
-          </button>
-        );
-      };
-      
-      const Header = ({ isDarkMode, toggleDarkMode, onMensaToggle }) => (
-        <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-sm sticky top-0 z-20 transition-colors duration-300 border-b border-slate-200 dark:border-slate-800">
-          <div className="container mx-auto px-4 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-10 w-10 text-indigo-600"
-                  viewBox="0 0 24 24"
-                >
-                  <path 
-                    fill="currentColor" 
-                    d="M19 14h-3v3h-2v-3h-3v-2h3V9h2v3h3m3-9H2c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h12.1c-.08-.33-.12-.66-.12-1c0-2.71 1.7-5.02 4-6.09V6l-8 5l-8-5h16v2.09c.72.2 1.39.57 2 .9V6c0-1.11-.89-2-2-2m-2 2L12 9L4 5h16Z"
-                  />
-                </svg>
-                <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white">
-                    Krankomat <span className="text-indigo-600">WebApp</span>
-                  </h1>
-                  <p className="text-xs lg:text-sm text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">
-                    Das Krankomat-Entwicklerteam: Fabian Flocken, Laurin Bennet Jaetschmann, Marvin Junk und Cederic Langpaap
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 sm:space-x-4">
-                <a 
-                    href="https://hawhamburgedu.sharepoint.com/sites/EGov25-Cloud/Freigegebene%20Dokumente/Forms/AllItems.aspx"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
-                    aria-label="Dateifreigabe öffnen"
-                    title="Dateifreigabe öffnen"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="h-6 w-6">
-                        <path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/>
-                    </svg>
-                </a>
-                <button 
-                    onClick={onMensaToggle}
-                    className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
-                    aria-label="Mensa-Menü anzeigen"
-                    title="Mensa-Menü anzeigen"
-                >
-                    <svg className="h-6 w-6" viewBox="130 360 85 100" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-                      <g transform="matrix(1, 0, 0, 1, 112.069527, 358.127716)">
-                        <path d="M64.3,63.2c-2.3,3.2-5,7.2-7.9,11.3l14.9,20.8c1.6,2.3,4.8,2.7,7,1l4.5-3.5c2.2-1.7,2.5-4.9,0.7-7L64.3,63.2z"/>
-                        <path d="M33.6,49.9l3-0.3c1.1-0.1,2.1,0.4,2.8,1.2l4,5.6c2.5-3,4.9-6.1,7.3-9.2L48,44c-0.7-0.8-0.9-2-0.5-3l1.1-2.9   c1.7-4.6,0.9-9.7-2.1-13.6l-16-20.6c-1.3-1.7-3.7-1.9-5.4-0.5c-1.5,1.3-1.6,3.7-0.4,5.2l13.2,17c0.9,1.2,0.6,2.9-0.7,3.7   c-1.1,0.7-2.6,0.3-3.5-0.7L20.6,11.6c-1.3-1.7-3.7-1.9-5.4-0.5c-1.5,1.3-1.6,3.7-0.4,5.2l13.2,17c0.9,1.2,0.6,2.9-0.7,3.7   c-1.1,0.7-2.6,0.3-3.5-0.7L10.8,19.5c-1.2-1.6-3.5-2.1-5.2-0.9c-1.8,1.2-2.1,3.7-0.8,5.3l16.1,20.6C23.9,48.4,28.7,50.4,33.6,49.9z   "/>
-                        <path d="M92.9,7.3c-0.9-2.3-4-2.8-5.5-0.8L57.7,45.2c-9.2,12-17.5,22-27.5,33.3l-5.7,7c-1.8,2.2-1.4,5.5,0.9,7.3l4.5,3.4   c2.4,1.8,5.7,1.2,7.4-1.2c6.4-9.6,21.5-31.8,27.4-39.7l7,4.6c2.8,1.6,6.3,0.7,8-2c3.4-5.6,9.6-17.1,14.1-25.9   C98,23.9,95.2,13.4,92.9,7.3z"/>
-                      </g>
-                    </svg>
-                </button>
-                <DarkModeToggle isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
-              </div>
+    <!-- Header -->
+    <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-sm sticky top-0 z-20 transition-colors duration-300 border-b border-slate-200 dark:border-slate-800">
+      <div class="container mx-auto px-4 lg:px-8 py-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-600" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M19 14h-3v3h-2v-3h-3v-2h3V9h2v3h3m3-9H2c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h12.1c-.08-.33-.12-.66-.12-1c0-2.71 1.7-5.02 4-6.09V6l-8 5l-8-5h16v2.09c.72.2 1.39.57 2 .9V6c0-1.11-.89-2-2-2m-2 2L12 9L4 5h16Z"/>
+            </svg>
+            <div>
+              <h1 class="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white">
+                Krankomat <span class="text-indigo-600">WebApp</span>
+              </h1>
+              <p class="text-xs lg:text-sm text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">
+                Das Krankomat-Entwicklerteam: Fabian Flocken, Laurin Bennet Jaetschmann, Marvin Junk und Cederic Langpaap
+              </p>
             </div>
           </div>
-        </header>
-      );
+          <div class="flex items-center space-x-2 sm:space-x-4">
+            <a href="https://hawhamburgedu.sharepoint.com/sites/EGov25-Cloud/Freigegebene%20Dokumente/Forms/AllItems.aspx" target="_blank" rel="noopener noreferrer" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors" title="Dateifreigabe öffnen">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" class="h-6 w-6">
+                    <path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/>
+                </svg>
+            </a>
+            <button id="mensa-toggle-btn" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors" title="Mensa-Menü anzeigen">
+                <svg class="h-6 w-6" viewBox="130 360 85 100" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                  <g transform="matrix(1, 0, 0, 1, 112.069527, 358.127716)">
+                    <path d="M64.3,63.2c-2.3,3.2-5,7.2-7.9,11.3l14.9,20.8c1.6,2.3,4.8,2.7,7,1l4.5-3.5c2.2-1.7,2.5-4.9,0.7-7L64.3,63.2z"/>
+                    <path d="M33.6,49.9l3-0.3c1.1-0.1,2.1,0.4,2.8,1.2l4,5.6c2.5-3,4.9-6.1,7.3-9.2L48,44c-0.7-0.8-0.9-2-0.5-3l1.1-2.9   c1.7-4.6,0.9-9.7-2.1-13.6l-16-20.6c-1.3-1.7-3.7-1.9-5.4-0.5c-1.5,1.3-1.6,3.7-0.4,5.2l13.2,17c0.9,1.2,0.6,2.9-0.7,3.7   c-1.1,0.7-2.6,0.3-3.5-0.7L20.6,11.6c-1.3-1.7-3.7-1.9-5.4-0.5c-1.5,1.3-1.6,3.7-0.4,5.2l13.2,17c0.9,1.2,0.6,2.9-0.7,3.7   c-1.1,0.7-2.6,0.3-3.5-0.7L10.8,19.5c-1.2-1.6-3.5-2.1-5.2-0.9c-1.8,1.2-2.1,3.7-0.8,5.3l16.1,20.6C23.9,48.4,28.7,50.4,33.6,49.9z   "/>
+                    <path d="M92.9,7.3c-0.9-2.3-4-2.8-5.5-0.8L57.7,45.2c-9.2,12-17.5,22-27.5,33.3l-5.7,7c-1.8,2.2-1.4,5.5,0.9,7.3l4.5,3.4   c2.4,1.8,5.7,1.2,7.4-1.2c6.4-9.6,21.5-31.8,27.4-39.7l7,4.6c2.8,1.6,6.3,0.7,8-2c3.4-5.6,9.6-17.1,14.1-25.9   C98,23.9,95.2,13.4,92.9,7.3z"/>
+                  </g>
+                </svg>
+            </button>
+            <button id="theme-toggle-btn" type="button" class="relative inline-flex items-center h-8 w-14 cursor-pointer rounded-full bg-slate-200 dark:bg-slate-700 transition-colors duration-300" aria-label="Toggle dark mode">
+              <span id="theme-toggle-indicator" class="translate-x-1 absolute left-0 inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white shadow-lg transition-transform duration-300 ease-in-out">
+                 <!-- Icon injected by JS -->
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
 
-      const Disclaimer = ({ onDismiss }) => (
-        <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-500 rounded-r-lg shadow-md animate-fade-in" role="alert">
-          <div className="flex">
-            <div className="py-1">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="h-8 w-8 text-amber-500 dark:text-amber-400 mr-4 flex-shrink-0">
+    <main id="main-content" class="container mx-auto p-4 lg:p-8 transition-all duration-500 flex-grow">
+      
+      <!-- Disclaimer -->
+      <div id="disclaimer-container" class="hidden mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-500 rounded-r-lg shadow-md animate-fade-in">
+          <div class="flex">
+            <div class="py-1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" class="h-8 w-8 text-amber-500 dark:text-amber-400 mr-4 flex-shrink-0">
                 <path d="M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-13.3 0-24 10.7-24 24V296c0 13.3 10.7 24 24 24s24-10.7 24-24V184c0-13.3-10.7-24-24-24zm32 224c0-17.7-14.3-32-32-32s-32 14.3-32 32s14.3 32 32 32s32-14.3 32-32z"/>
               </svg>
             </div>
             <div>
-              <p className="font-bold text-amber-800 dark:text-amber-200">Hinweis</p>
-              <p className="text-sm text-amber-700 dark:text-amber-300">
+              <p class="font-bold text-amber-800 dark:text-amber-200">Hinweis</p>
+              <p class="text-sm text-amber-700 dark:text-amber-300">
                 Dieses Werkzeug ist eine E-Mail Schreibhilfe. Alle Daten bleiben auf dem Gerät. 
               </p>
             </div>
-            <div className="ml-auto pl-3">
-              <button onClick={onDismiss} className="text-amber-500 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 rounded-full h-8 w-8 flex items-center justify-center transition-colors" aria-label="Disclaimer ausblenden">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" fill="currentColor" className="h-5 w-5">
+            <div class="ml-auto pl-3">
+              <button id="dismiss-disclaimer-btn" class="text-amber-500 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-200 focus:outline-none rounded-full h-8 w-8 flex items-center justify-center transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" fill="currentColor" class="h-5 w-5">
                   <path d="M310.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L160 210.7 54.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L114.7 256 9.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 301.3 265.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L205.3 256 310.6 150.6z"/>
                 </svg>
               </button>
             </div>
           </div>
-        </div>
-      );
+      </div>
 
-      const Card = ({ title, children, className }) => (
-        <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-lg ${className}`}>
-          <div className="p-6">
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 mb-5">
-              {title}
-            </h2>
-            <div className="space-y-5">
-              {children}
-            </div>
-          </div>
-        </div>
-      );
-
-      const FormField = ({ label, id, type = 'text', value, onChange, placeholder, className }) => (
-        <div className={`flex flex-col ${className}`}>
-          <label htmlFor={id} className="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">{label}</label>
-          <input
-            id={id}
-            type={type}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
-          />
-        </div>
-      );
-      
-      const Checkbox = ({ label, checked, onChange, id }) => (
-        <label htmlFor={id} className="flex items-center space-x-3 cursor-pointer group">
-          <div className="relative flex items-center">
-            <input
-              id={id}
-              type="checkbox"
-              checked={checked}
-              onChange={onChange}
-              className="peer relative h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-400 dark:border-slate-500 transition-all checked:border-indigo-600 checked:bg-indigo-600 dark:checked:border-indigo-500 dark:checked:bg-indigo-500"
-            />
-            <div className="pointer-events-none absolute top-2/4 left-2/4 -translate-y-2/4 -translate-x-2/4 text-white opacity-0 transition-opacity peer-checked:opacity-100">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" strokeWidth="1">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
-                </svg>
-            </div>
-          </div>
-          <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-            {label}
-          </span>
-        </label>
-      );
-
-      const UserInfoPanel = ({ userData, setUserData, sicknessStartDate, setSicknessStartDate, sicknessEndDate, setSicknessEndDate, onManualSave, saveStatus }) => {
-        const handleUserChange = (field, value) => setUserData(prev => ({ ...prev, [field]: value }));
-        const noticeType = sicknessEndDate ? 'Gesundmeldung' : 'Krankmeldung';
-
-        const handleNoticeTypeChange = (type) => {
-          if (type === 'Krankmeldung') setSicknessEndDate('');
-          else if (type === 'Gesundmeldung' && !sicknessEndDate) setSicknessEndDate(todayFormatted());
-        };
-
-        return (
-          <Card title="Allgemeine Informationen">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="Vorname" id="firstName" value={userData.firstName} onChange={(e) => handleUserChange('firstName', e.target.value)} />
-              <FormField label="Nachname" id="lastName" value={userData.lastName} onChange={(e) => handleUserChange('lastName', e.target.value)} />
-              <FormField label="Matrikelnummer" id="studentId" value={userData.studentId} onChange={(e) => handleUserChange('studentId', e.target.value)} />
-              {/* <FormField label="Absender-E-Mail" id="email" type="email" value={userData.email} onChange={(e) => handleUserChange('email', e.target.value)} /> */}
-            </div>
-            <div className="border-t border-slate-200 dark:border-slate-700 mt-4 pt-4 space-y-4">
-              <div className="p-1 flex bg-slate-100 dark:bg-slate-700 rounded-full">
-                <button onClick={() => handleNoticeTypeChange('Krankmeldung')} className={`w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${noticeType === 'Krankmeldung' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>Krankmeldung</button>
-                <button onClick={() => handleNoticeTypeChange('Gesundmeldung')} className={`w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${noticeType === 'Gesundmeldung' ? 'bg-white dark:bg-slate-800 text-green-600 dark:text-green-400 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>Gesundmeldung</button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                <FormField label="Erster Krankheitstag" id="startDate" value={sicknessStartDate} onChange={e => setSicknessStartDate(e.target.value)} />
-                <div className="flex flex-col">
-                    <FormField label="Letzter Krankheitstag (optional)" id="endDate" value={sicknessEndDate} onChange={e => setSicknessEndDate(e.target.value)} />
-                    <button onClick={() => setSicknessEndDate(todayFormatted())} className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 self-start font-medium">heute wieder gesund</button>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end pt-4 mt-2">
-              <button
-                onClick={onManualSave}
-                className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 ${
-                  saveStatus === 'saved'
-                    ? 'bg-green-500 dark:bg-green-600 text-white cursor-default'
-                    : 'text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:hover:bg-indigo-500/30'
-                }`}
-                disabled={saveStatus === 'saved'}
-                aria-live="polite"
-              >
-                {saveStatus === 'saved' ? (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="h-4 w-4 mr-2">
-                      <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>
-                    </svg>
-                    Gespeichert!
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="h-4 w-4 mr-2">
-                      <path d="M64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V173.3c0-17-6.7-33.3-18.7-45.3L352 50.7C340 38.7 323.7 32 306.7 32H64zm0 96c0-17.7 14.3-32 32-32H288c17.7 0 32 14.3 32 32v64c0 17.7-14.3 32-32 32H96c-17.7 0-32-14.3-32-32V128zM224 288a64 64 0 1 1 0 128 64 64 0 1 1 0-128z"/>
-                    </svg>
-                    Speichern
-                  </>
-                )}
-              </button>
-            </div>
-          </Card>
-        );
-      };
-
-      const AbsencePanel = ({ reasons, onToggle }) => (
-        <Card title="Heute verpasse ich...">
-          <Checkbox id="lecture" label="Vorlesungszeit" checked={reasons.lecture} onChange={() => onToggle('lecture')} />
-          <Checkbox id="internship" label="Berufspraxis" checked={reasons.internship} onChange={() => onToggle('internship')} />
-          <div>
-            <Checkbox id="exam" label="Prüfungsleistung / Klausur" checked={reasons.exam} onChange={() => onToggle('exam')} />
-            {reasons.exam && (
-              <div className="mt-3 ml-8 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/30 rounded-lg text-sm text-blue-800 dark:text-blue-200 flex items-start space-x-3 transition-all duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="h-5 w-5 text-blue-500 dark:text-blue-400 mt-1 flex-shrink-0">
-                  <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/>
-                </svg>
-                <p>
-                  <strong>Wichtiger Hinweis:</strong> Diese E-Mail ersetzt nicht die offizielle Prüfungsunfähigkeitsbescheinigung, die beim Prüfungsamt eingereicht werden muss.
-                </p>
-              </div>
-            )}
-          </div>
-          <Checkbox id="partialDay" label="Rest des Tages (war schon da)" checked={reasons.partialDay} onChange={() => onToggle('partialDay')} />
-        </Card>
-      );
-      
-      const DetailsPanel = ({ details, onChange }) => {
-        const commentPresets = ["nur 1 Tag krank", "vsl. ungefähr 3 Tage krank", "vsl. länger als 3 Tage, Arzt wird aufgesucht"];
-        const handleCommentPresetToggle = (text) => {
-          const currentComments = details.comments.split('\n').filter(line => line.trim() !== '');
-          const newComments = currentComments.includes(text) ? currentComments.filter(c => c !== text) : [...currentComments, text];
-          onChange('comments', newComments.join('\n'));
-        };
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <!-- Left Column: Builder -->
+        <div class="lg:col-span-3 space-y-8">
           
-        return (
-          <Card title="Details & Optionen">
-            <div style={{padding:'0.75rem', backgroundColor:'rgba(59, 130, 246, 0.1)', border:'1px solid rgba(59, 130, 246, 0.2)', borderRadius:'0.5rem', fontSize:'0.875rem', marginBottom:'1rem'}}>
-              <div style={{display: 'flex', gap: '0.75rem', alignItems: 'flex-start'}}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" style={{width: '1rem', height: '1rem', marginTop: '0.2rem', flexShrink: 0}}>
-                      <path d="M364.2 83.8c-24.4-24.4-64-24.4-88.4 0l-184 184c-42.1 42.1-42.1 110.3 0 152.4s110.3 42.1 152.4 0l152-152c10.9-10.9 28.7-10.9 39.6 0s10.9 28.7 0 39.6l-152 152c-64 64-167.6 64-231.6 0s-64-167.6 0-231.6l184-184c46.3-46.3 121.3-46.3 167.6 0s46.3 121.3 0 167.6l-176 176c-28.6 28.6-75 28.6-103.6 0s-28.6-75 0-103.6l144-144c10.9-10.9 28.7-10.9 39.6 0s10.9 28.7 0 39.6l-144 144c-6.7 6.7-6.7 17.7 0 24.4s17.7 6.7 24.4 0l176-176c24.4-24.4 24.4-64 0-88.4z"/>
-                  </svg>
-                  <p style={{margin:0}}>
-                      <strong>Anhänge:</strong> Dokumente wie eine eAU oder ein Attest erst in Outlook anhängen.
-                  </p>
+          <!-- User Info Panel -->
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+            <div class="p-6">
+              <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 mb-5">
+                Allgemeine Informationen
+              </h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div class="flex flex-col">
+                    <label for="firstName" class="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">Vorname</label>
+                    <input id="firstName" type="text" class="form-input px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                 </div>
+                 <div class="flex flex-col">
+                    <label for="lastName" class="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">Nachname</label>
+                    <input id="lastName" type="text" class="form-input px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                 </div>
+                 <div class="flex flex-col">
+                    <label for="studentId" class="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">Matrikelnummer</label>
+                    <input id="studentId" type="text" class="form-input px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                 </div>
               </div>
-            </div>
-            <div>
-              <label htmlFor="comments" className="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">Bemerkung / voraussichtliche Dauer</label>
-              <textarea id="comments" value={details.comments} onChange={(e) => onChange('comments', e.target.value)} rows={3} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200" />
-              <div className="mt-2 space-y-2">
-                {commentPresets.map(preset => (<Checkbox key={preset} id={`preset-${preset}`} label={preset} checked={details.comments.includes(preset)} onChange={() => handleCommentPresetToggle(preset)} />))}
-              </div>
-            </div>
-          </Card>
-        );
-      };
-      
-      const RecipientsPanel = ({ recipients, onToggle, onEmailChange }) => (
-        <Card title="Krankmelden bei">
-          <div className="max-h-80 overflow-y-auto pr-2 -mr-2 space-y-4">
-            {recipients.map(recipient => (
-              <div key={recipient.id} className="p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                <Checkbox id={`recipient-${recipient.id}`} checked={recipient.isSelected} onChange={() => onToggle(recipient.id)} label={recipient.module} />
-                <input type="email" value={recipient.email || ''} onChange={(e) => onEmailChange(recipient.id, e.target.value)} placeholder="E-Mail-Adresse eingeben" className="ml-8 mt-2 w-[calc(100%-2rem)] px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" aria-label={`Email for ${recipient.module}`} />
-              </div>
-            ))}
-          </div>
-        </Card>
-      );
-      
-      const CopyableField = ({ label, value }) => {
-        const [copied, setCopied] = useState(false);
-        const handleCopy = useCallback(() => {
-          if (!value) return;
-          copyToClipboard(value, () => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          });
-        }, [value]);
 
-        const CopyIcon = () => (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="h-4 w-4">
-            <path d="M208 0H332.1c12.7 0 24.9 5.1 33.9 14.1l67.9 67.9c9 9 14.1 21.2 14.1 33.9V336c0 26.5-21.5 48-48 48H208c-26.5 0-48-21.5-48-48V48c0-26.5 21.5-48 48-48zM48 128h80v64H64V448H256V416h64v48c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V176c0-26.5 21.5-48 48-48z"/>
-          </svg>
-        );
-        const CheckIcon = () => (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="h-4 w-4 text-green-500">
-            <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>
-          </svg>
-        );
-
-        return (
-          <div>
-            <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">{label}</label>
-            <div className="mt-1 relative group">
-              <div className="p-3 pr-10 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words font-mono border border-slate-200 dark:border-slate-700">
-                {value || <span className="text-slate-400 dark:text-slate-500 font-sans italic">Wird automatisch generiert...</span>}
-              </div>
-              {value && (
-                <button onClick={handleCopy} title="In die Zwischenlage kopieren" className="absolute top-2 right-2 p-2 rounded-md bg-white/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label="Copy">
-                  {copied ? <CheckIcon /> : <CopyIcon />}
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      };
-
-      const AndroidIcon = () => (
-        <svg className="h-5 w-5 mr-2" viewBox="83 288 265 122" xmlns="http://www.w3.org/2000/svg">
-            <path 
-                fill="#32de84"
-                d="m 263.837 306.59 l 21.9331 -37.9944 c 1.2377 -2.12998 0.48933 -4.83565 -1.61189 -6.07335 c -2.1012 -1.23768 -4.83565 -0.5181 -6.04456 1.61189 l -22.221 38.4837 c -16.9536 -7.74281 -36.0371 -12.0604 -56.5599 -12.0604 c -20.5227 0 -39.6063 4.31754 -56.5599 12.0604 l -22.221 -38.4837 c -1.2377 -2.12999 -3.94336 -2.84957 -6.07335 -1.61189 c -2.13 1.2377 -2.84959 3.94337 -1.61189 6.07335 l 21.9331 37.9944 c -37.8217 20.494 -63.4392 58.7762 -67.6703 103.592 h 264.407 c -4.2312 -44.8161 -29.8487 -83.0984 -67.6991 -103.592 Z m -125.209 66.4614 c -6.13092 0 -11.0817 -4.97957 -11.0817 -11.0817 c 0 -6.13093 4.97957 -11.0817 11.0817 -11.0817 c 6.13092 0 11.0817 4.97956 11.0817 11.0817 c 0.0289 6.10212 -4.95079 11.0817 -11.0817 11.0817 Z m 121.381 0 c -6.13091 0 -11.0817 -4.97957 -11.0817 -11.0817 c 0 -6.13093 4.97958 -11.0817 11.0817 -11.0817 c 6.13093 0 11.0817 4.97956 11.0817 11.0817 c 0.0288 6.10212 -4.95077 11.0817 -11.0817 11.0817 Z"
-            />
-        </svg>
-      );
-
-      const Tooltip = ({ message }) => (
-        <div className="absolute bottom-full mb-2 w-max max-w-xs left-1/2 -translate-x-1/2 px-3 py-2 bg-slate-700 dark:bg-slate-800 text-white dark:text-slate-200 text-sm rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
-          {message}
-          <svg className="absolute text-slate-700 dark:text-slate-800 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255" xmlSpace="preserve">
-            <polygon className="fill-current" points="0,0 127.5,127.5 255,0"/>
-          </svg>
-        </div>
-      );
-      
-      const PreviewPanel = ({ email, editedBody, setEditedBody }) => {
-        const { subject, to } = email;
-
-        const toList = to ? to.split(';').map(e => e.trim()).filter(Boolean) : [];
-        const toMailtoValue = toList.join(',');
-
-        const finalOutlookHref = toList.length > 0 ? `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(editedBody)}` : null;
-        const finalMailtoHref = toList.length > 0 ? `mailto:${toMailtoValue}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(editedBody)}` : null;
-
-        const handleOpenOutlook = () => {
-          if (finalOutlookHref) {
-            window.open(finalOutlookHref, '_blank', 'noopener,noreferrer');
-          }
-        };
-        
-        const [bodyCopied, setBodyCopied] = useState(false);
-        const handleCopyBody = useCallback(() => {
-          if (!editedBody) return;
-          copyToClipboard(editedBody, () => {
-            setBodyCopied(true);
-            setTimeout(() => setBodyCopied(false), 2000);
-          });
-        }, [editedBody]);
-        
-        const CopyIcon = () => (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="h-4 w-4">
-            <path d="M208 0H332.1c12.7 0 24.9 5.1 33.9 14.1l67.9 67.9c9 9 14.1 21.2 14.1 33.9V336c0 26.5-21.5 48-48 48H208c-26.5 0-48-21.5-48-48V48c0-26.5 21.5-48 48-48zM48 128h80v64H64V448H256V416h64v48c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V176c0-26.5 21.5-48 48-48z"/>
-          </svg>
-        );
-        const CheckIcon = () => (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="h-4 w-4 text-green-500">
-            <path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/>
-          </svg>
-        );
-
-        return (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg sticky top-24">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 mb-5">Vorschau & E-Mail</h2>
-              <div className="space-y-4">
-                <CopyableField label="Betreff" value={email.subject} />
-                <CopyableField label="An (To)" value={email.to} />
-                <div>
-                  <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nachricht</label>
-                  <div className="mt-1 relative group">
-                    <textarea 
-                      value={editedBody}
-                      onChange={(e) => setEditedBody(e.target.value)}
-                      className="w-full p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words h-64 overflow-y-auto border border-slate-200 dark:border-slate-700 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
-                      aria-label="Email message body"
-                    />
-                    <button onClick={handleCopyBody} title="Nachricht kopieren" className="absolute top-2 right-2 p-2 rounded-md bg-white/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label="Copy message">
-                      {bodyCopied ? <CheckIcon /> : <CopyIcon />}
-                    </button>
+              <div class="border-t border-slate-200 dark:border-slate-700 mt-4 pt-4 space-y-4">
+                  <div class="p-1 flex bg-slate-100 dark:bg-slate-700 rounded-full">
+                    <button id="btn-type-krank" class="w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300">Krankmeldung</button>
+                    <button id="btn-type-gesund" class="w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300">Gesundmeldung</button>
                   </div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t border-slate-200 dark:border-slate-700 rounded-b-xl">
-              <div className="relative group w-full">
-                <button 
-                  onClick={handleOpenOutlook} 
-                  disabled={!finalOutlookHref}
-                  className="w-full inline-flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:bg-indigo-400 dark:disabled:bg-indigo-500/50 disabled:cursor-not-allowed">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="h-5 w-5 mr-3">
-                    <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.2 160 480V396.4c0-4 1.5-7.8 4.2-10.7L331.8 202.8c5.8-6.3 5.6-16-.4-22s-15.7-6.4-22-.7L106 360.8 17.7 316.6C7.1 311.3 .3 300.7 0 288.9s5.9-22.8 16.1-28.7l448-256c10.7-6.1 23.8-5.5 34 1.4z"/>
-                  </svg>
-                  E-Mail in Outlook öffnen
-                </button>
-                {!finalOutlookHref && (
-                  <Tooltip message="Bitte fügen Sie mindestens einen Empfänger mit einer gültigen E-Mail-Adresse hinzu." />
-                )}
-              </div>
-              <div className="relative group w-full mt-3">
-                <a
-                  href={finalMailtoHref || undefined}
-                  onClick={(e) => { if (!finalMailtoHref) e.preventDefault(); }}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-disabled={!finalMailtoHref}
-                  className={`w-full inline-flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 text-sm font-medium rounded-md shadow-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 transition-colors ${
-                    finalMailtoHref
-                      ? 'hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500'
-                      : 'opacity-50 cursor-not-allowed'
-                  }`}
-                >
-                  <AndroidIcon />
-                  Öffnen mit Standard Mail-Programm
-                </a>
-                {!finalMailtoHref && (
-                  <Tooltip message="Bitte fügen Sie mindestens einen Empfänger mit einer gültigen E-Mail-Adresse hinzu." />
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      };
-
-      const MensaPanel = ({ isOpen, onClose }) => {
-        const [menu, setMenu] = useState([]);
-        const [loading, setLoading] = useState(true);
-        const [error, setError] = useState(null);
-        const [currentDate, setCurrentDate] = useState(new Date());
-        
-        const categoryOrder = [
-          'CampusKlassiker',
-          'Highlight',
-          'CampusVital',
-          'CampusWorld',
-          'Pottkieker',
-          'Pastabar',
-          'Gemüsebar',
-        ];
-
-        useEffect(() => {
-          if (isOpen) {
-            const fetchMenu = async () => {
-              setLoading(true);
-              setError(null);
-              setMenu([]);
-              
-              const year = currentDate.getFullYear();
-              const month = currentDate.getMonth() + 1;
-              const day = currentDate.getDate();
-              
-              const url = `https://raw.githubusercontent.com/HAWHHCalendarBot/mensa-data/main/Mensa%20Berliner%20Tor/${year}/${month}/${day}.json`;
-
-              try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                  throw new Error(`Heute ist leider kein Menü verfügbar oder die Mensa ist geschlossen.`);
-                }
-                const data = await response.json();
-                setMenu(data);
-              } catch (err) {
-                setError(err.message || 'Fehler beim Laden der Menüdaten.');
-              } finally {
-                setLoading(false);
-              }
-            };
-            fetchMenu();
-          }
-        }, [isOpen, currentDate]);
-        
-        useEffect(() => {
-            const handleKeyDown = (event) => {
-                if (event.key === 'Escape') {
-                    onClose();
-                }
-            };
-            if (isOpen) {
-                window.addEventListener('keydown', handleKeyDown);
-            }
-            return () => {
-                window.removeEventListener('keydown', handleKeyDown);
-            };
-        }, [isOpen, onClose]);
-
-        const groupedMenu = useMemo(() => {
-            const grouped = menu.reduce((acc, item) => {
-                const category = item.Category || 'Sonstiges';
-                if (!acc[category]) acc[category] = [];
-                acc[category].push(item);
-                return acc;
-            }, {});
-
-            for (const category in grouped) {
-                grouped[category].sort((a, b) => b.PriceStudent - a.PriceStudent);
-            }
-            
-            return grouped;
-        }, [menu]);
-        
-        const allAdditives = useMemo(() => {
-            if (!menu || menu.length === 0) return {};
-            const additivesMap = {};
-            menu.forEach(item => {
-                if (item.Additives) {
-                    Object.entries(item.Additives).forEach(([code, description]) => {
-                        const cleanCode = code.replace(/<\/?strong>/g, '');
-                        if (!additivesMap[cleanCode]) {
-                            additivesMap[cleanCode] = description;
-                        }
-                    });
-                }
-            });
-            return additivesMap;
-        }, [menu]);
-
-        const changeDate = (days) => {
-            setCurrentDate(prevDate => {
-                const newDate = new Date(prevDate);
-                newDate.setDate(newDate.getDate() + days);
-                return newDate;
-            });
-        };
-
-        if (!isOpen) return null;
-
-        return (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300"
-            onClick={onClose}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="mensa-panel-title"
-          >
-            <div 
-              className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95 opacity-0 animate-[scale-in_0.2s_ease-out_forwards]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <header className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center space-x-4">
-                    <button onClick={() => changeDate(-1)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" aria-label="Vorheriger Tag">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                    </button>
-                    <div className="text-center">
-                        <h2 id="mensa-panel-title" className="text-lg font-bold text-slate-800 dark:text-slate-100">Mensa Berliner Tor</h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{currentDate.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                    </div>
-                    <button onClick={() => changeDate(1)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" aria-label="Nächster Tag">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
-                    </button>
-                </div>
-                <button onClick={onClose} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors" aria-label="Schließen">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </header>
-
-              <main className="p-4 sm:p-6 overflow-y-auto flex-grow">
-                {loading && <div className="flex justify-center items-center h-full"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}
-                {error && <div className="text-center text-red-500 dark:text-red-400 p-8">{error}</div>}
-                {!loading && !error && Object.keys(groupedMenu).length > 0 ? (
-                    Object.entries(groupedMenu)
-                      .sort(([catA], [catB]) => {
-                          const indexA = categoryOrder.indexOf(catA);
-                          const indexB = categoryOrder.indexOf(catB);
-                          if (indexA === -1 && indexB === -1) return catA.localeCompare(catB);
-                          if (indexA === -1) return 1;
-                          if (indexB === -1) return -1;
-                          return indexA - indexB;
-                      })
-                      .map(([category, items]) => (
-                        <div key={category} className="mb-6">
-                            <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mb-3 pb-2 border-b-2 border-indigo-200 dark:border-indigo-500/30">{category}</h3>
-                            <div className="space-y-4">
-                                {items.map((item, index) => {
-                                    const cleanedName = item.Name.replace(/\s*\([^)]+\)/g, '').trim();
-                                    return (
-                                        <div key={index} className="bg-slate-50 dark:bg-slate-700/40 p-4 rounded-lg">
-                                            <h4 className="font-semibold text-slate-800 dark:text-slate-100">{cleanedName}</h4>
-                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 text-sm gap-2">
-                                                <div className="flex flex-wrap gap-2">
-                                                    {item.Vegan && <span className="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300 rounded-full text-xs font-semibold">Vegan</span>}
-                                                    {item.Vegetarian && !item.Vegan && <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 rounded-full text-xs font-semibold">Vegetarisch</span>}
-                                                    {item.LactoseFree && <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 rounded-full text-xs font-semibold">Laktosefrei</span>}
-                                                </div>
-                                                <div className="text-left sm:text-right font-mono text-xs text-slate-600 dark:text-slate-300 flex-shrink-0">
-                                                    <span>Stud: <strong>{item.PriceStudent.toFixed(2)}€</strong></span> / <span>Bed: {item.PriceAttendant.toFixed(2)}€</span> / <span>Gast: {item.PriceGuest.toFixed(2)}€</span>
-                                                </div>
-                                            </div>
-                                            {Object.keys(item.Additives).length > 0 && (
-                                                <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                                    Zusatzstoffe: {Object.keys(item.Additives).map(code => code.replace(/<\/?strong>/g, '')).join(', ')}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))
-                ) : null}
-              </main>
-              {Object.keys(allAdditives).length > 0 && (
-                <footer className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-700 flex-shrink-0 max-h-40 overflow-y-auto">
-                    <h4 className="text-sm font-bold mb-2">Zusatzstoffe-Legende</h4>
-                    <div className="text-xs text-slate-600 dark:text-slate-400 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1">
-                        {Object.entries(allAdditives).map(([code, description]) => (
-                            <div key={code}><strong>{code}:</strong> {description}</div>
-                        ))}
-                    </div>
-                </footer>
-              )}
-            </div>
-          </div>
-        );
-      };
-
-      // --- APP ---
-      const loadJSONState = (key, defaultValue) => {
-        try {
-            const item = localStorage.getItem(key);
-            return item ? JSON.parse(item) : defaultValue;
-        } catch (error) {
-            console.error(`Failed to load state for ${key}`, error);
-            return defaultValue;
-        }
-      };
-
-      const getInitialUserData = () => {
-        try {
-          const savedUserData = localStorage.getItem('krankomat_userData');
-          return savedUserData ? { ...DEFAULT_USER_DATA, ...JSON.parse(savedUserData) } : DEFAULT_USER_DATA;
-        } catch (error) {
-          console.error("Failed to load user data from localStorage", error);
-          return DEFAULT_USER_DATA;
-        }
-      };
-      
-      const getInitialRecipients = () => {
-        try {
-          const baseRecipients = RECIPIENTS_DATA_STRUCTURE.map(r => ({ ...r, email: '' }));
-          const savedRecipients = localStorage.getItem('krankomat_recipients');
-          if (savedRecipients) {
-            const parsed = JSON.parse(savedRecipients);
-            const merged = baseRecipients.map(base => {
-              const saved = parsed.find(sr => sr.id === base.id);
-              return { ...base, ...saved };
-            });
-            return merged;
-          }
-          return baseRecipients;
-        } catch (error) {
-          console.error("Failed to load recipients from localStorage", error);
-          return RECIPIENTS_DATA_STRUCTURE.map(r => ({ ...r, email: '' }));
-        }
-      };
-
-      function App() {
-        const [isDarkMode, setIsDarkMode] = useState(() => {
-            if (typeof window !== 'undefined' && localStorage.getItem('theme')) {
-                return localStorage.getItem('theme') === 'dark';
-            }
-            return false; // Default to light theme
-        });
-        const [isMensaPanelOpen, setIsMensaPanelOpen] = useState(false);
-        const [isTermsAccepted, setIsTermsAccepted] = useState(false);
-        const [isExpertModalOpen, setIsExpertModalOpen] = useState(false);
-
-        useEffect(() => {
-            if (isDarkMode) {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-            }
-        }, [isDarkMode]);
-
-        useEffect(() => {
-          const handleKeyDown = (e) => {
-            // Ctrl + Shift + X to toggle Expert Mode
-            if (e.ctrlKey && e.shiftKey && (e.key === 'X' || e.key === 'x')) {
-              e.preventDefault();
-              setIsExpertModalOpen(prev => !prev);
-            }
-          };
-          window.addEventListener('keydown', handleKeyDown);
-          return () => window.removeEventListener('keydown', handleKeyDown);
-        }, []);
-
-        const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
-        
-        const [userData, setUserData] = useState(getInitialUserData);
-        const [sicknessStartDate, setSicknessStartDate] = useState(() => loadJSONState('krankomat_sicknessStartDate', todayFormatted()));
-        const [sicknessEndDate, setSicknessEndDate] = useState(() => loadJSONState('krankomat_sicknessEndDate', ''));
-        const [absenceReasons, setAbsenceReasons] = useState(() => {
-            const defaults = { lecture: true, internship: false, exam: false, partialDay: false };
-            return { ...defaults, ...loadJSONState('krankomat_absenceReasons', {}) };
-        });
-        const [recipients, setRecipients] = useState(getInitialRecipients);
-        const [details, setDetails] = useState(() => {
-            const loadedDetails = loadJSONState('krankomat_details', {});
-            return {
-                comments: loadedDetails.comments || ''
-            };
-        });
-        const [saveStatus, setSaveStatus] = useState('idle');
-        const [disclaimerVisible, setDisclaimerVisible] = useState(false);
-        const [editedBody, setEditedBody] = useState('');
-        
-        useEffect(() => {
-          try {
-            if (localStorage.getItem('krankomat_disclaimerDismissed') !== 'true') {
-              setDisclaimerVisible(true);
-            }
-          } catch (error) {
-            console.error("Could not access localStorage", error);
-            setDisclaimerVisible(true); // Show it if localStorage fails
-          }
-        }, []);
-
-        const handleDismissDisclaimer = useCallback(() => {
-          try {
-            localStorage.setItem('krankomat_disclaimerDismissed', 'true');
-            setDisclaimerVisible(false);
-          } catch (error) {
-            console.error("Could not write to localStorage", error);
-            setDisclaimerVisible(false); // Still hide it
-          }
-        }, []);
-        
-        useEffect(() => { localStorage.setItem('krankomat_userData', JSON.stringify(userData)); }, [userData]);
-        useEffect(() => { localStorage.setItem('krankomat_sicknessStartDate', JSON.stringify(sicknessStartDate)); }, [sicknessStartDate]);
-        useEffect(() => { localStorage.setItem('krankomat_sicknessEndDate', JSON.stringify(sicknessEndDate)); }, [sicknessEndDate]);
-        useEffect(() => { localStorage.setItem('krankomat_absenceReasons', JSON.stringify(absenceReasons)); }, [absenceReasons]);
-        useEffect(() => { localStorage.setItem('krankomat_details', JSON.stringify(details)); }, [details]);
-        useEffect(() => { if (recipients.length > 0) localStorage.setItem('krankomat_recipients', JSON.stringify(recipients)); }, [recipients]);
-
-        const noticeType = sicknessEndDate ? 'Gesundmeldung' : 'Krankmeldung';
-
-        useEffect(() => {
-          const day = getDayOfWeek(sicknessStartDate);
-          if (!day || recipients.length === 0) return;
-          const todaysModules = TIMETABLE_DATA.filter(e => e.day.toLowerCase() === day.toLowerCase()).map(e => e.module.toLowerCase());
-          setRecipients(prev => prev.map(r => ({ ...r, isSelected: r.module.includes('ZPD') || todaysModules.some(mod => r.module.toLowerCase().includes(mod)) })));
-        }, [sicknessStartDate]);
-        
-        const handleRecipientToggle = (id) => setRecipients(recipients.map(r => r.id === id ? { ...r, isSelected: !r.isSelected } : r));
-        const handleRecipientEmailChange = (id, email) => setRecipients(recipients.map(r => r.id === id ? { ...r, email } : r));
-        const handleAbsenceReasonToggle = (reason) => setAbsenceReasons(prev => ({...prev, [reason]: !prev[reason]}));
-        const handleDetailsChange = (key, value) => setDetails(prev => ({...prev, [key]: value}));
-        
-        const handleManualSave = useCallback(() => {
-          try {
-            localStorage.setItem('krankomat_userData', JSON.stringify(userData));
-            localStorage.setItem('krankomat_recipients', JSON.stringify(recipients));
-            localStorage.setItem('krankomat_sicknessStartDate', JSON.stringify(sicknessStartDate));
-            localStorage.setItem('krankomat_sicknessEndDate', JSON.stringify(sicknessEndDate));
-            localStorage.setItem('krankomat_absenceReasons', JSON.stringify(absenceReasons));
-            localStorage.setItem('krankomat_details', JSON.stringify(details));
-            setSaveStatus('saved');
-            setTimeout(() => setSaveStatus('idle'), 2000);
-          } catch (error) {
-            console.error("Manual save to localStorage failed", error);
-          }
-        }, [userData, recipients, sicknessStartDate, sicknessEndDate, absenceReasons, details]);
-
-        const generatedEmail = useMemo(() => {
-          const selectedRecipients = recipients.filter(r => r.isSelected);
-          const anreden = [...new Set(selectedRecipients.map(r => r.anrede.trim()))];
-          const anredeText = selectedRecipients.length === 0 ? 'Sehr geehrte Damen und Herren,' : `${anreden.join(',\n')},`;
-          
-          let abwesenheitsgrund = '';
-          if (noticeType === 'Krankmeldung') {
-              if (absenceReasons.partialDay) {
-                  abwesenheitsgrund = 'Hiermit melde ich mich für den Rest des heutigen Tages krank.';
-              } else {
-                  const verpasst = [];
-                  if (absenceReasons.lecture) verpasst.push('der Vorlesungszeit');
-                  if (absenceReasons.internship) verpasst.push('der Berufspraxis');
-                  if (absenceReasons.exam) verpasst.push('einer Prüfungsleistung');
-
-                  if (verpasst.length > 0) {
-                      abwesenheitsgrund = `Aufgrund meiner Krankheit kann ich heute nicht an ${verpasst.join(' sowie ')} teilnehmen.`;
-                  }
-              }
-          }
-
-          const bodyTemplate = noticeType === 'Gesundmeldung' ? 
-`{anrede}
-
-hiermit melde ich mich ab dem {Datum2} wieder gesund.
-Ich war vom {Datum} bis einschließlich {Datum2} krank.
-
-Name: {Vornamen} {Nachname}
-Matrikelnummer: {Matrikelnummer}
-Studiengang: {studiengang}
-
-{bemerkung}
-
-Mit freundlichen Grüßen
-{Vornamen} {Nachname}` : 
-`{anrede}
-
-hiermit melde ich mich für den {Datum} krank.
-{abwesenheitsgrund}
-{dauermeldung}
-
-Name: {Vornamen} {Nachname}
-Matrikelnummer: {Matrikelnummer}
-Studiengang: {studiengang}
-
-{bemerkung}
-
-Mit freundlichen Grüßen
-{Vornamen} {Nachname}`;
-
-          const context = {
-            Vornamen: userData.firstName, Nachname: userData.lastName, Matrikelnummer: userData.studentId,
-            Datum: sicknessStartDate, Datum2: sicknessEndDate, art: noticeType, studiengang: userData.studyProgram,
-            anrede: anredeText, bemerkung: details.comments,
-            prüfungstag: absenceReasons.exam ? 'ja' : 'nein',
-            dauermeldung: sicknessEndDate ? `Ich bin voraussichtlich bis einschließlich ${sicknessEndDate} krank.` : '',
-            abwesenheitsgrund: abwesenheitsgrund,
-          };
-          
-          let body = renderTemplate(bodyTemplate.trim(), context);
-          
-          const subject = renderTemplate(EMAIL_SUBJECT_TEMPLATE, context);
-          const toList = selectedRecipients.map(r => r.email).filter(Boolean).filter(e => e.trim() !== '');
-          
-          const toValue = toList.join('; ');
-          
-          return { subject, body: body.trim(), to: toValue };
-        }, [userData, noticeType, sicknessStartDate, sicknessEndDate, absenceReasons, recipients, details]);
-
-        useEffect(() => {
-          setEditedBody(generatedEmail.body);
-        }, [generatedEmail.body]);
-
-        return (
-          <div className="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-300 font-sans transition-colors duration-300 flex flex-col">
-            <TermsModal onAccept={() => setIsTermsAccepted(true)} />
-            <ExpertModal isOpen={isExpertModalOpen} onClose={() => setIsExpertModalOpen(false)} />
-            <Header isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} onMensaToggle={() => setIsMensaPanelOpen(true)} />
-            <MensaPanel isOpen={isMensaPanelOpen} onClose={() => setIsMensaPanelOpen(false)} />
-            <main className={`container mx-auto p-4 lg:p-8 transition-all duration-500 flex-grow ${isTermsAccepted ? 'blur-none' : ''}`}>
-              {disclaimerVisible && <Disclaimer onDismiss={handleDismissDisclaimer} />}
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                <div className="lg:col-span-3 space-y-8">
-                  <UserInfoPanel 
-                    userData={userData} 
-                    setUserData={setUserData} 
-                    sicknessStartDate={sicknessStartDate} 
-                    setSicknessStartDate={setSicknessStartDate} 
-                    sicknessEndDate={sicknessEndDate} 
-                    setSicknessEndDate={setSicknessEndDate}
-                    onManualSave={handleManualSave}
-                    saveStatus={saveStatus} 
-                  />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <AbsencePanel reasons={absenceReasons} onToggle={handleAbsenceReasonToggle} />
-                    <DetailsPanel details={details} onChange={handleDetailsChange} />
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                     <div class="flex flex-col">
+                        <label for="startDate" class="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">Erster Krankheitstag</label>
+                        <input id="startDate" type="text" class="form-input px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                     </div>
+                     <div class="flex flex-col">
+                        <label for="endDate" class="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">Letzter Krankheitstag (optional)</label>
+                        <input id="endDate" type="text" class="form-input px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                        <button id="btn-today-healthy" class="mt-2 text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 self-start font-medium">heute wieder gesund</button>
+                     </div>
                   </div>
-                  <RecipientsPanel recipients={recipients} onToggle={handleRecipientToggle} onEmailChange={handleRecipientEmailChange} />
-                </div>
-                <div className="lg:col-span-2">
-                  <PreviewPanel email={generatedEmail} editedBody={editedBody} setEditedBody={setEditedBody} />
-                </div>
               </div>
-            </main>
-            <footer className="py-4 text-center opacity-10 hover:opacity-100 transition-opacity duration-500">
-               <button onClick={() => setIsExpertModalOpen(true)} className="text-xs font-mono text-slate-500">
-                  v1.0.0 (Expert Mode: Ctrl+Shift+X)
-               </button>
-            </footer>
+              <div class="flex justify-end pt-4 mt-2">
+                  <button id="manual-save-btn" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:hover:bg-indigo-500/30">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" class="h-4 w-4 mr-2"><path d="M64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V173.3c0-17-6.7-33.3-18.7-45.3L352 50.7C340 38.7 323.7 32 306.7 32H64zm0 96c0-17.7 14.3-32 32-32H288c17.7 0 32 14.3 32 32v64c0 17.7-14.3 32-32 32H96c-17.7 0-32-14.3-32-32V128zM224 288a64 64 0 1 1 0 128 64 64 0 1 1 0-128z"/></svg>
+                     Speichern
+                  </button>
+              </div>
+            </div>
           </div>
-        );
-      }
 
-      // --- RENDER ---
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<React.StrictMode><App /></React.StrictMode>);
-    </script>
-<script type="module" src="/index.tsx"></script>
+          <!-- Absence Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+             <!-- Absence Panel -->
+             <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+                <div class="p-6">
+                   <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 mb-5">Heute verpasse ich...</h2>
+                   <div id="absence-reasons-container" class="space-y-2">
+                      <!-- Injected by JS -->
+                   </div>
+                </div>
+             </div>
+
+             <!-- Details Panel -->
+             <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+                <div class="p-6">
+                   <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 mb-5">Details & Optionen</h2>
+                   
+                   <div id="details-attachment-notice" style="padding:0.75rem; background-color:rgba(59, 130, 246, 0.1); border:1px solid rgba(59, 130, 246, 0.2); border-radius:0.5rem; font-size:0.875rem; margin-bottom:1rem;">
+                      <div style="display: flex; gap: 0.75rem; alignItems: flex-start;">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" style="width: 1rem; height: 1rem; margin-top: 0.2rem; flex-shrink: 0;">
+                              <path d="M364.2 83.8c-24.4-24.4-64-24.4-88.4 0l-184 184c-42.1 42.1-42.1 110.3 0 152.4s110.3 42.1 152.4 0l152-152c10.9-10.9 28.7-10.9 39.6 0s10.9 28.7 0 39.6l-152 152c-64 64-167.6 64-231.6 0s-64-167.6 0-231.6l184-184c46.3-46.3 121.3-46.3 167.6 0s46.3 121.3 0 167.6l-176 176c-28.6 28.6-75 28.6-103.6 0s-28.6-75 0-103.6l144-144c10.9-10.9 28.7-10.9 39.6 0s10.9 28.7 0 39.6l-144 144c-6.7 6.7-6.7 17.7 0 24.4s17.7 6.7 24.4 0l176-176c24.4-24.4 24.4-64 0-88.4z"/>
+                          </svg>
+                          <p style="margin:0;">
+                              <strong>Anhänge:</strong> Dokumente wie eine eAU oder ein Attest erst in Outlook anhängen.
+                          </p>
+                      </div>
+                   </div>
+
+                   <label for="comments" class="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">Bemerkung / voraussichtliche Dauer</label>
+                   <textarea id="comments" rows="3" class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"></textarea>
+                   <div id="comment-presets-container" class="mt-2 space-y-2">
+                      <!-- Presets injected by JS -->
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          <!-- Recipients Panel -->
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+             <div class="p-6">
+                <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 mb-5">Krankmelden bei</h2>
+                <div id="recipients-list-container" class="max-h-80 overflow-y-auto pr-2 -mr-2 space-y-4">
+                   <!-- Injected by JS -->
+                </div>
+             </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Preview -->
+        <div class="lg:col-span-2">
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg sticky top-24">
+             <div class="p-6">
+                <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 mb-5">Vorschau & E-Mail</h2>
+                <div class="space-y-4">
+                   <div>
+                      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">Betreff</label>
+                      <div class="mt-1 relative group">
+                         <div id="preview-subject" class="p-3 pr-10 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words font-mono border border-slate-200 dark:border-slate-700 min-h-[3rem]"></div>
+                         <button id="copy-subject-btn" class="absolute top-2 right-2 p-2 rounded-md bg-white/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" title="Kopieren">
+                             <!-- Icon injected -->
+                         </button>
+                      </div>
+                   </div>
+                   <div>
+                      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">An (To)</label>
+                      <div class="mt-1 relative group">
+                         <div id="preview-to" class="p-3 pr-10 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words font-mono border border-slate-200 dark:border-slate-700 min-h-[3rem]"></div>
+                         <button id="copy-to-btn" class="absolute top-2 right-2 p-2 rounded-md bg-white/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" title="Kopieren">
+                           <!-- Icon injected -->
+                         </button>
+                      </div>
+                   </div>
+                   <div>
+                      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">Nachricht</label>
+                      <div class="mt-1 relative group">
+                         <textarea id="preview-body" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words h-64 overflow-y-auto border border-slate-200 dark:border-slate-700 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"></textarea>
+                         <button id="copy-body-btn" class="absolute top-2 right-2 p-2 rounded-md bg-white/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" title="Kopieren">
+                           <!-- Icon injected -->
+                         </button>
+                      </div>
+                   </div>
+                </div>
+             </div>
+             
+             <div class="bg-slate-50 dark:bg-slate-800/50 p-4 border-t border-slate-200 dark:border-slate-700 rounded-b-xl">
+                <div class="relative group w-full">
+                   <button id="open-outlook-btn" class="w-full inline-flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:bg-indigo-400 dark:disabled:bg-indigo-500/50 disabled:cursor-not-allowed">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" class="h-5 w-5 mr-3">
+                         <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.2 160 480V396.4c0-4 1.5-7.8 4.2-10.7L331.8 202.8c5.8-6.3 5.6-16-.4-22s-15.7-6.4-22-.7L106 360.8 17.7 316.6C7.1 311.3 .3 300.7 0 288.9s5.9-22.8 16.1-28.7l448-256c10.7-6.1 23.8-5.5 34 1.4z"/>
+                      </svg>
+                      E-Mail in Outlook öffnen
+                   </button>
+                   <div id="outlook-tooltip" class="hidden absolute bottom-full mb-2 w-max max-w-xs left-1/2 -translate-x-1/2 px-3 py-2 bg-slate-700 dark:bg-slate-800 text-white dark:text-slate-200 text-sm rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
+                      Bitte fügen Sie mindestens einen Empfänger mit einer gültigen E-Mail-Adresse hinzu.
+                      <svg class="absolute text-slate-700 dark:text-slate-800 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255" xmlSpace="preserve"><polygon class="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+                   </div>
+                </div>
+                
+                <div class="relative group w-full mt-3">
+                   <a id="open-mailto-link" href="#" target="_blank" rel="noopener noreferrer" class="w-full inline-flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 text-sm font-medium rounded-md shadow-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 transition-colors disabled:opacity-50">
+                      <svg class="h-5 w-5 mr-2" viewBox="83 288 265 122" xmlns="http://www.w3.org/2000/svg"><path fill="#32de84" d="m 263.837 306.59 l 21.9331 -37.9944 c 1.2377 -2.12998 0.48933 -4.83565 -1.61189 -6.07335 c -2.1012 -1.23768 -4.83565 -0.5181 -6.04456 1.61189 l -22.221 38.4837 c -16.9536 -7.74281 -36.0371 -12.0604 -56.5599 -12.0604 c -20.5227 0 -39.6063 4.31754 -56.5599 12.0604 l -22.221 -38.4837 c -1.2377 -2.12999 -3.94336 -2.84957 -6.07335 -1.61189 c -2.13 1.2377 -2.84959 3.94337 -1.61189 6.07335 l 21.9331 37.9944 c -37.8217 20.494 -63.4392 58.7762 -67.6703 103.592 h 264.407 c -4.2312 -44.8161 -29.8487 -83.0984 -67.6991 -103.592 Z m -125.209 66.4614 c -6.13092 0 -11.0817 -4.97957 -11.0817 -11.0817 c 0 -6.13093 4.97957 -11.0817 11.0817 -11.0817 c 6.13092 0 11.0817 4.97956 11.0817 11.0817 c 0.0289 6.10212 -4.95079 11.0817 -11.0817 11.0817 Z m 121.381 0 c -6.13091 0 -11.0817 -4.97957 -11.0817 -11.0817 c 0 -6.13093 4.97958 -11.0817 11.0817 -11.0817 c 6.13093 0 11.0817 4.97956 11.0817 11.0817 c 0.0288 6.10212 -4.95077 11.0817 -11.0817 11.0817 Z"/></svg>
+                      Öffnen mit Standard Mail-Programm
+                   </a>
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="py-4 text-center opacity-10 hover:opacity-100 transition-opacity duration-500">
+       <button id="expert-mode-btn" class="text-xs font-mono text-slate-500">
+          v1.0.0 (Expert Mode: Ctrl+Shift+X)
+       </button>
+    </footer>
+
+    <!-- Load Scripts sequentially -->
+    <script src="js/utils.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/colors.js"></script>
+    <script src="js/builder.js"></script>
+    <script src="js/preview.js"></script>
+    <script src="js/app.js"></script>
+  <script type="module" src="/index.tsx"></script>
 </body>
 </html>
