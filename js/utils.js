@@ -45,7 +45,8 @@ Krankomat.Utils = {
         return `${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
     },
 
-    // ICS Parsing Utility
+    // ICS Parsing Utility - COMPACT MODE
+    // Stores only the unique events with their RRULE strings, does not expand them.
     parseICS: (icsContent) => {
         const events = [];
         
@@ -68,7 +69,6 @@ Krankomat.Utils = {
         
         let inEvent = false;
         let currentEvent = {};
-        let currentRrule = null;
         
         for (const rawLine of unfoldedLines) {
             const line = rawLine.trim();
@@ -78,20 +78,12 @@ Krankomat.Utils = {
             if (upperLine.startsWith('BEGIN:VEVENT')) {
                 inEvent = true;
                 currentEvent = {};
-                currentRrule = null;
                 continue;
             }
             if (upperLine.startsWith('END:VEVENT')) {
                 inEvent = false;
                 if (currentEvent.start && currentEvent.summary) {
-                    // Push the original/first event
                     events.push({...currentEvent});
-                    
-                    // Handle RRULE expansion (Basic Weekly support)
-                    if (currentRrule) {
-                        const expanded = Krankomat.Utils.expandRRULE(currentEvent, currentRrule);
-                        events.push(...expanded);
-                    }
                 }
                 continue;
             }
@@ -123,7 +115,8 @@ Krankomat.Utils = {
                 } else if (upperLine.startsWith('RRULE')) {
                     const idx = line.indexOf(':');
                     if (idx !== -1) {
-                        currentRrule = line.substring(idx + 1).trim();
+                        // Store the RRULE string for on-demand calculation
+                        currentEvent.rrule = line.substring(idx + 1).trim();
                     }
                 }
             }
@@ -131,63 +124,74 @@ Krankomat.Utils = {
         return events;
     },
 
-    expandRRULE: (baseEvent, rruleStr) => {
-        const expandedEvents = [];
-        // Parse RRULE parts: FREQ=WEEKLY;UNTIL=20260101;INTERVAL=1...
-        const parts = rruleStr.split(';').reduce((acc, part) => {
+    // Check if an event falls on a specific date (DD.MM.YYYY)
+    // Handles base date matching and RRULE logic (Weekly only)
+    isEventOnDate: (event, targetDateStr) => {
+        if (!event.start || !targetDateStr) return false;
+
+        // 1. Parse dates to comparable objects (midnight)
+        const parts = targetDateStr.split('.');
+        if (parts.length !== 3) return false;
+        
+        // Target date at midnight
+        const targetDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        
+        // Event start date at midnight
+        const startDateFull = Krankomat.Utils.parseIcsDateStringToJsDate(event.start);
+        if (!startDateFull) return false;
+        
+        const startDate = new Date(startDateFull.getFullYear(), startDateFull.getMonth(), startDateFull.getDate());
+
+        // Optimization: If target is before start, impossible
+        if (targetDate < startDate) return false;
+
+        // 2. Base match
+        // Calculate difference in days
+        const diffTime = targetDate.getTime() - startDate.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+        if (diffDays === 0) return true;
+
+        // 3. RRULE logic
+        if (!event.rrule) return false;
+
+        const rrule = event.rrule;
+        const rruleParts = rrule.split(';').reduce((acc, part) => {
             const [key, val] = part.split('=');
             acc[key] = val;
             return acc;
         }, {});
 
-        // We only support WEEKLY for typical semester plans
-        if (parts['FREQ'] !== 'WEEKLY') return [];
+        // Only support WEEKLY for now
+        if (rruleParts['FREQ'] !== 'WEEKLY') return false;
 
-        const interval = parts['INTERVAL'] ? parseInt(parts['INTERVAL']) : 1;
-        const count = parts['COUNT'] ? parseInt(parts['COUNT']) : null;
-        const untilStr = parts['UNTIL']; // e.g., 20260214T000000Z
-
-        const startDate = Krankomat.Utils.parseIcsDateStringToJsDate(baseEvent.start);
-        if (!startDate) return [];
-
-        let untilDate = untilStr ? Krankomat.Utils.parseIcsDateStringToJsDate(untilStr) : null;
+        const interval = rruleParts['INTERVAL'] ? parseInt(rruleParts['INTERVAL']) : 1;
         
-        // Fix for inclusive UNTIL date: If UNTIL is just a date (length 8), it implies the end of that day.
-        // We set it to 23:59:59 to ensure inclusive comparison against event start times.
-        if (untilDate && untilStr.replace('Z','').trim().length === 8) {
-            untilDate.setHours(23, 59, 59, 999);
-        }
+        // Check if days diff aligns with weekly interval
+        if (diffDays % (7 * interval) !== 0) return false;
         
-        // Safety limit to prevent infinite loops if RRULE is malformed
-        const MAX_OCCURRENCES = 100; 
-        
-        let occurrences = 0;
-        let currentDate = new Date(startDate);
-
-        // Advance to first repetition (original event is already added)
-        currentDate.setDate(currentDate.getDate() + (7 * interval));
-
-        while (occurrences < MAX_OCCURRENCES) {
-            // Check UNTIL
-            if (untilDate && currentDate > untilDate) break;
+        // Check UNTIL
+        if (rruleParts['UNTIL']) {
+            const untilStr = rruleParts['UNTIL'];
+            const untilDate = Krankomat.Utils.parseIcsDateStringToJsDate(untilStr);
             
-            // Check COUNT (Note: COUNT usually includes the first one, so we subtract 1 since base is added)
-            if (count && (occurrences + 1) >= count) break;
+            // Fix for inclusive UNTIL date-only
+            if (untilStr.replace('Z','').trim().length === 8) {
+                untilDate.setHours(23, 59, 59, 999);
+            }
             
-            // Create event
-            const newEvent = {
-                summary: baseEvent.summary,
-                start: Krankomat.Utils.formatJsDateToIcsString(currentDate),
-                location: baseEvent.location // Preserve location
-            };
-            expandedEvents.push(newEvent);
-
-            // Next step
-            currentDate.setDate(currentDate.getDate() + (7 * interval));
-            occurrences++;
+            // Compare full target date (which is midnight) vs Until
+            if (targetDate > untilDate) return false;
         }
 
-        return expandedEvents;
+        // Check COUNT
+        if (rruleParts['COUNT']) {
+            const count = parseInt(rruleParts['COUNT']);
+            const occurrences = (diffDays / (7 * interval)) + 1; // +1 because base is #1
+            if (occurrences > count) return false;
+        }
+
+        return true;
     },
 
     // Convert ICS date (YYYYMMDD or YYYYMMDDTHHMMSS) to app format (DD.MM.YYYY)

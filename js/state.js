@@ -33,7 +33,8 @@ Krankomat.State = {
                 fileshare: true,
                 calendar: true,
                 mensa: true
-            }
+            },
+            supportEmail: "support@krankomat.cloud"
         }
     },
 
@@ -65,7 +66,7 @@ Krankomat.State = {
         
         this.data.calendarEvents = this.loadJSONState('krankomat_calendarEvents', []);
         this.data.emailDirectory = this.loadJSONState('krankomat_emailDirectory', this.defaults.emailDirectory);
-        this.data.config = this.loadJSONState('krankomat_config', this.defaults.config);
+        this.data.config = { ...this.defaults.config, ...this.loadJSONState('krankomat_config', {}) };
 
         // Merge recipients logic
         const baseRecipients = this.defaults.recipientsStructure.map(r => ({ ...r, email: '' }));

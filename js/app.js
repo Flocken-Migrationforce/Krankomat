@@ -147,7 +147,9 @@ Krankomat.App = {
 
     renderSettingsModal: function(container) {
         // Retrieve current config
-        const config = Krankomat.State.get('config') || { headerButtons: { fileshare: true, calendar: true, mensa: true } };
+        const config = Krankomat.State.get('config') || {};
+        const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true };
+        const supportEmail = config.supportEmail || "support@krankomat.cloud";
 
         container.innerHTML = `
           <div class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm transition-all" id="expert-backdrop">
@@ -181,36 +183,38 @@ Krankomat.App = {
                      </div>
                   </div>
 
-                  <!-- ICS Import -->
-                  <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-                     <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3">Stundenplan Import</h3>
-                     <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                        Laden Sie eine .ics Datei Ihres Stundenplans hoch, um die Termine automatisch zu übernehmen.
-                     </p>
-                     <label class="w-full flex flex-col items-center px-4 py-3 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-lg shadow-sm tracking-wide uppercase border border-indigo-200 dark:border-indigo-900/50 cursor-pointer hover:bg-indigo-50 dark:hover:bg-slate-700 transition-colors">
-                        <svg class="w-6 h-6" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
-                        <span class="mt-2 text-xs font-bold">.ics Datei auswählen</span>
-                        <input type='file' id="settings-ics-upload" class="hidden" accept=".ics" />
-                    </label>
-                  </div>
-
                   <!-- UI Toggle Section -->
                   <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
                     <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Benutzeroberfläche (Header)</h3>
                     <div class="space-y-2">
                         <label class="flex items-center space-x-2">
-                            <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="fileshare" ${config.headerButtons.fileshare ? 'checked' : ''}>
+                            <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="fileshare" ${buttons.fileshare ? 'checked' : ''}>
                             <span class="text-sm text-slate-600 dark:text-slate-300">Dateifreigabe (Cloud-Link)</span>
                         </label>
                         <label class="flex items-center space-x-2">
-                            <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="calendar" ${config.headerButtons.calendar ? 'checked' : ''}>
+                            <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="calendar" ${buttons.calendar ? 'checked' : ''}>
                             <span class="text-sm text-slate-600 dark:text-slate-300">Stundenplan (Kalender)</span>
                         </label>
                         <label class="flex items-center space-x-2">
-                            <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="mensa" ${config.headerButtons.mensa ? 'checked' : ''}>
+                            <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="mensa" ${buttons.mensa ? 'checked' : ''}>
                             <span class="text-sm text-slate-600 dark:text-slate-300">Mensa Menü</span>
                         </label>
                     </div>
+                  </div>
+                  
+                  <!-- Support Section -->
+                  <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
+                     <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Hilfe & Support</h3>
+                     <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                        Haben Sie Fragen oder Feedback? Kontaktieren Sie uns.
+                     </p>
+                     <a href="mailto:${supportEmail}?subject=Feedback%20Krankomat%20WebApp" class="w-full inline-flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-500 text-sm font-medium rounded-md shadow-sm text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-600 hover:bg-slate-50 dark:hover:bg-slate-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                           <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                           <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                        </svg>
+                        E-Mail senden
+                     </a>
                   </div>
 
                   <!-- Backup Section -->
@@ -237,6 +241,19 @@ Krankomat.App = {
                         <svg class="w-6 h-6" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" /></svg>
                         <span class="mt-2 text-xs font-bold">JSON Datei auswählen</span>
                         <input type='file' id="expert-file-input" class="hidden" accept=".json" />
+                    </label>
+                  </div>
+
+                  <!-- ICS Import (Moved to bottom) -->
+                  <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
+                     <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3">Stundenplan Import</h3>
+                     <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                        Laden Sie eine .ics Datei Ihres Stundenplans hoch.
+                     </p>
+                     <label class="w-full flex flex-col items-center px-4 py-3 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-lg shadow-sm tracking-wide uppercase border border-indigo-200 dark:border-indigo-900/50 cursor-pointer hover:bg-indigo-50 dark:hover:bg-slate-700 transition-colors">
+                        <svg class="w-6 h-6" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                        <span class="mt-2 text-xs font-bold">.ics Datei auswählen</span>
+                        <input type='file' id="settings-ics-upload" class="hidden" accept=".ics" />
                     </label>
                   </div>
                 </div>
@@ -480,6 +497,10 @@ Krankomat.App = {
     },
 
     renderCalendarModal: function(container) {
+        // Count base events (not expanded)
+        const baseEvents = Krankomat.State.data.calendarEvents ? Krankomat.State.data.calendarEvents.length : 0;
+        const countText = baseEvents > 0 ? `(${baseEvents} Einträge geladen)` : '';
+
         container.innerHTML = `
             <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300" id="calendar-backdrop">
                 <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col animate-scale-in" onclick="event.stopPropagation()">
@@ -490,6 +511,7 @@ Krankomat.App = {
                             </button>
                             <div class="text-center">
                                 <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">Stundenplan</h2>
+                                <p class="text-xs text-indigo-600 dark:text-indigo-400 mb-0.5">${countText}</p>
                                 <p id="calendar-date-display" class="text-sm text-slate-500 dark:text-slate-400 font-medium"></p>
                             </div>
                             <button id="calendar-next" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
@@ -516,17 +538,14 @@ Krankomat.App = {
             
             dateDisplay.innerText = currentDate.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             
-            // Format current date to match ICS parser output (DD.MM.YYYY)
+            // Format current date to string for filtering
             const day = String(currentDate.getDate()).padStart(2, '0');
             const month = String(currentDate.getMonth() + 1).padStart(2, '0');
             const year = currentDate.getFullYear();
             const dateStr = `${day}.${month}.${year}`;
 
-            // Filter events
-            const daysEvents = events.filter(evt => {
-                const appDate = Krankomat.Utils.convertICSDateToAppDate(evt.start);
-                return appDate === dateStr;
-            });
+            // Smart filter that handles RRULEs on the fly
+            const daysEvents = events.filter(evt => Krankomat.Utils.isEventOnDate(evt, dateStr));
 
             if (daysEvents.length === 0) {
                  if (events.length === 0) {
@@ -546,6 +565,7 @@ Krankomat.App = {
                  }
             } else {
                 let html = '<div class="space-y-3">';
+                // Sorting logic for time
                 daysEvents.sort((a,b) => (a.start || '').localeCompare(b.start || '')).forEach(evt => {
                     // Extract time if present in start string (YYYYMMDDTHHMMSS)
                     let timeStr = '';

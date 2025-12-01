@@ -83,6 +83,7 @@ Krankomat.Builder = {
         const reader = new FileReader();
         reader.onload = (ev) => {
             try {
+                // Modified to return compacted events (not expanded)
                 const events = Krankomat.Utils.parseICS(ev.target.result);
                 Krankomat.State.set('calendarEvents', events);
                 
@@ -102,14 +103,7 @@ Krankomat.Builder = {
                 // Re-evaluate recipients with new data
                 this.recalculateRecipients();
                 
-                // Visual Feedback
-                const status = document.getElementById('calendar-status');
-                if (status) {
-                    status.innerText = `${events.length} Termine`;
-                    status.classList.remove('hidden');
-                    setTimeout(() => status.classList.add('hidden'), 5000);
-                }
-                alert(`Erfolg: ${events.length} Termine importiert.`);
+                alert(`Erfolg: ${events.length} Kalendereinträge importiert.`);
             } catch (err) {
                 alert("Fehler beim Lesen der Kalenderdatei.");
                 console.error(err);
@@ -217,11 +211,8 @@ Krankomat.Builder = {
         // 2. Calendar / Timetable
         if (calendarEvents.length > 0) {
             // Logic with ICS Data
-            // Filter events that match the normalized date string
-            const dayEvents = calendarEvents.filter(evt => {
-                const appDate = Krankomat.Utils.convertICSDateToAppDate(evt.start);
-                return appDate === dateStr;
-            });
+            // Filter events using the smart on-the-fly recurrence check
+            const dayEvents = calendarEvents.filter(evt => Krankomat.Utils.isEventOnDate(evt, dateStr));
             
             // Map to recipient objects
             const eventRecipients = dayEvents.map((evt, index) => {
@@ -282,13 +273,6 @@ Krankomat.Builder = {
     render: function() {
         const data = Krankomat.State.data;
         if (!data.userData) return; // Safety check
-
-        // Calendar Status (in the header now)
-        const calendarStatus = document.getElementById('calendar-status');
-        if (calendarStatus && data.calendarEvents && data.calendarEvents.length > 0) {
-            calendarStatus.innerText = `Kalender: ${data.calendarEvents.length} Termine`;
-            calendarStatus.classList.remove('hidden');
-        }
 
         // Input values
         const firstNameInput = document.getElementById('firstName');
@@ -389,6 +373,8 @@ Krankomat.Builder = {
                     // Update state, then recalculate recipients (specifically for Exam)
                     Krankomat.State.data.absenceReasons[reason] = e.target.checked;
                     this.recalculateRecipients(); // This also saves and notifies
+                    // Force recipients list update if privacy logic changed state
+                    this.updatePrivacyState();
                 });
             });
 
@@ -399,76 +385,71 @@ Krankomat.Builder = {
                 condInput.addEventListener('input', (e) => {
                     const value = e.target.value;
                     Krankomat.State.data.userData.studentId = value;
-                    
-                    // PRIVACY LOGIC: If ID is present, deselect all professors (Ids != 1 and != 'exam-office')
-                    if (value.length > 0) {
-                        const recipients = Krankomat.State.get('recipients');
-                        let changed = false;
-                        const updatedRecipients = recipients.map(r => {
-                            // Keep ZPD (1) and Exam Office
-                            if (r.id !== 1 && r.id !== 'exam-office' && r.isSelected) {
-                                changed = true;
-                                return { ...r, isSelected: false };
-                            }
-                            return r;
-                        });
-                        
-                        if (changed) {
-                            Krankomat.State.set('recipients', updatedRecipients);
-                        } else {
-                            // Just save user data without full recipient set update loop to avoid cursor jump
-                            Krankomat.State.save();
-                        }
-                    } else {
-                        Krankomat.State.save();
-                    }
-                    
-                    // Manually trigger preview update only to update email body
-                    Krankomat.Preview.render(); 
+                    this.updatePrivacyState();
                 });
             }
         }
+    },
+
+    updatePrivacyState: function() {
+        const studentId = Krankomat.State.data.userData.studentId;
+        const isExam = Krankomat.State.data.absenceReasons.exam;
+        
+        // Privacy Active only if ID present AND Exam checked
+        const privacyActive = (studentId && studentId.length > 0) && isExam;
+        
+        const recipients = Krankomat.State.get('recipients');
+        let changed = false;
+
+        const updatedRecipients = recipients.map(r => {
+            // Deselect professors (IDs not 1 and not exam-office) if privacy active
+            if (privacyActive && r.id !== 1 && r.id !== 'exam-office' && r.isSelected) {
+                changed = true;
+                return { ...r, isSelected: false };
+            }
+            return r;
+        });
+        
+        if (changed) {
+            Krankomat.State.set('recipients', updatedRecipients);
+        } else {
+            Krankomat.State.save();
+            // Force redraw of recipients list to apply disabled styling based on privacy logic
+            this.renderRecipientsList(updatedRecipients);
+        }
+        
+        // Manually trigger preview update to update email body
+        Krankomat.Preview.render(); 
     },
 
     renderRecipientsList: function(recipients) {
         const container = document.getElementById('recipients-list-container');
         if (!recipients || !container) return;
         
-        // Always rebuild fully when length changes to handle dynamic updates properly
-        // Or if container is empty
-        if (container.children.length !== recipients.length) {
-             container.innerHTML = recipients.map(r => this.buildRecipientRow(r)).join('');
-             return;
-        }
-
-        // Update existing DOM to preserve focus
-        recipients.forEach(r => {
-            const checkbox = container.querySelector(`input[data-recipient-id="${r.id}"]`);
-            const emailInput = container.querySelector(`input[data-recipient-email-id="${r.id}"]`);
-            const labelSpan = checkbox ? checkbox.closest('label').querySelector('span') : null;
-
-            if (checkbox && checkbox.checked !== r.isSelected) {
-                checkbox.checked = r.isSelected;
-            }
-            
-            // Update label text if module changes (dynamic dates)
-            if (labelSpan && labelSpan.innerText !== r.module) {
-                labelSpan.innerText = r.module;
-            }
-
-            // Only update value if it differs AND it is NOT the active element
-            if (emailInput && emailInput.value !== (r.email || '') && document.activeElement !== emailInput) {
-                emailInput.value = r.email || '';
-            }
-        });
+        const studentId = Krankomat.State.data.userData.studentId;
+        const isExam = Krankomat.State.data.absenceReasons.exam;
+        
+        // Disable state logic: ID present AND Exam checked
+        const privacyActive = (studentId && studentId.length > 0) && isExam;
+        
+        // Always rebuild fully to ensure disabled state is applied correctly in HTML
+        container.innerHTML = recipients.map(r => {
+            // Disable if privacy mode is active AND recipient is a professor (not ZPD/Exam)
+            const isDisabled = privacyActive && r.id !== 1 && r.id !== 'exam-office';
+            return this.buildRecipientRow(r, isDisabled);
+        }).join('');
     },
 
-    buildRecipientRow: function(r) {
+    buildRecipientRow: function(r, isDisabled) {
+        // Disabled styling classes
+        const opacityClass = isDisabled ? 'opacity-50 grayscale pointer-events-none' : '';
+        const disabledAttr = isDisabled ? 'disabled' : '';
+
         return `
-            <div class="p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+            <div class="p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${opacityClass}">
                 <label class="flex items-center space-x-3 cursor-pointer group">
                     <div class="relative flex items-center">
-                        <input type="checkbox" data-recipient-id="${r.id}" ${r.isSelected ? 'checked' : ''} class="peer relative h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-400 dark:border-slate-500 transition-all checked:border-indigo-600 checked:bg-indigo-600 dark:checked:border-indigo-500 dark:checked:bg-indigo-500" />
+                        <input type="checkbox" data-recipient-id="${r.id}" ${r.isSelected ? 'checked' : ''} ${disabledAttr} class="peer relative h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-400 dark:border-slate-500 transition-all checked:border-indigo-600 checked:bg-indigo-600 dark:checked:border-indigo-500 dark:checked:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50" />
                         <div class="pointer-events-none absolute top-2/4 left-2/4 -translate-y-2/4 -translate-x-2/4 text-white opacity-0 transition-opacity peer-checked:opacity-100">
                              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" strokeWidth="1">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
@@ -479,7 +460,7 @@ Krankomat.Builder = {
                         ${r.module}
                     </span>
                 </label>
-                <input type="email" data-recipient-email-id="${r.id}" value="${r.email || ''}" placeholder="E-Mail-Adresse eingeben" class="ml-8 mt-2 w-[calc(100%-2rem)] px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                <input type="email" data-recipient-email-id="${r.id}" value="${r.email || ''}" ${disabledAttr} placeholder="E-Mail-Adresse eingeben" class="ml-8 mt-2 w-[calc(100%-2rem)] px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed" />
             </div>
         `;
     },
