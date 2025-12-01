@@ -1,8 +1,10 @@
 
+
 window.Krankomat = window.Krankomat || {};
 
 Krankomat.Preview = {
-    emailSubjectTemplate: "{art} E-Gov 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]",
+    // Subject changed: removed student ID, as per request
+    emailSubjectTemplate: "{art} E-Gov 2025 {Datum} [{Vornamen} {Nachname}]",
 
     init: function() {
         this.setupCopyButtons();
@@ -41,6 +43,10 @@ Krankomat.Preview = {
         const anreden = [...new Set(selectedRecipients.map(r => r.anrede.trim()))];
         const anredeText = selectedRecipients.length === 0 ? 'Sehr geehrte Damen und Herren,' : `${anreden.join(',\n')},`;
 
+        // Check for Exam
+        const isExam = data.absenceReasons && data.absenceReasons.exam;
+        const matriculationLine = isExam && data.userData.studentId ? `Matrikelnummer: ${data.userData.studentId}\n` : '';
+
         let abwesenheitsgrund = '';
         if (noticeType === 'Krankmeldung') {
             if (data.absenceReasons.partialDay) {
@@ -57,6 +63,7 @@ Krankomat.Preview = {
             }
         }
 
+        // Templates updated to remove generic Matrikelnummer, adding it dynamically via {optionalMatrikelnummer}
         const bodyTemplate = noticeType === 'Gesundmeldung' ? 
 `{anrede}
 
@@ -64,8 +71,7 @@ hiermit melde ich mich ab dem {Datum2} wieder gesund.
 Ich war vom {Datum} bis einschließlich {Datum2} krank.
 
 Name: {Vornamen} {Nachname}
-Matrikelnummer: {Matrikelnummer}
-Studiengang: {studiengang}
+{optionalMatrikelnummer}Studiengang: {studiengang}
 
 {bemerkung}
 
@@ -78,8 +84,7 @@ hiermit melde ich mich für den {Datum} krank.
 {dauermeldung}
 
 Name: {Vornamen} {Nachname}
-Matrikelnummer: {Matrikelnummer}
-Studiengang: {studiengang}
+{optionalMatrikelnummer}Studiengang: {studiengang}
 
 {bemerkung}
 
@@ -89,7 +94,8 @@ Mit freundlichen Grüßen
         const context = {
             Vornamen: data.userData.firstName, 
             Nachname: data.userData.lastName, 
-            Matrikelnummer: data.userData.studentId,
+            // Matrikelnummer: data.userData.studentId, // Removed from context for standard usage
+            optionalMatrikelnummer: matriculationLine,
             Datum: data.sicknessStartDate, 
             Datum2: data.sicknessEndDate, 
             art: noticeType, 

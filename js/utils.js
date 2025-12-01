@@ -1,4 +1,5 @@
 
+
 // Namespace setup
 window.Krankomat = window.Krankomat || {};
 
@@ -18,6 +19,185 @@ Krankomat.Utils = {
         if (isNaN(date.getTime())) return null;
         const days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
         return days[date.getDay()];
+    },
+    
+    // Helper to parse ICS date string (YYYYMMDDTHHMMSS or YYYYMMDD) to JS Date
+    parseIcsDateStringToJsDate: (str) => {
+        if (!str) return null;
+        const clean = str.replace('Z', '').trim();
+        const y = parseInt(clean.substring(0,4));
+        const m = parseInt(clean.substring(4,6)) - 1; // Months are 0-indexed
+        const d = parseInt(clean.substring(6,8));
+        
+        let h = 0, min = 0, s = 0;
+        if (clean.includes('T')) {
+            const timePart = clean.split('T')[1];
+            if (timePart.length >= 2) h = parseInt(timePart.substring(0,2));
+            if (timePart.length >= 4) min = parseInt(timePart.substring(2,4));
+            if (timePart.length >= 6) s = parseInt(timePart.substring(4,6));
+        }
+        return new Date(y, m, d, h, min, s);
+    },
+
+    // Helper to format JS Date back to ICS string YYYYMMDDTHHMMSS
+    formatJsDateToIcsString: (date) => {
+        const pad = n => n.toString().padStart(2, '0');
+        return `${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+    },
+
+    // ICS Parsing Utility
+    parseICS: (icsContent) => {
+        const events = [];
+        
+        // RFC 5545 Unfolding
+        const lines = icsContent.split(/\r\n|\n|\r/);
+        const unfoldedLines = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.length === 0) continue;
+            
+            if (line.startsWith(' ') || line.startsWith('\t')) {
+                if (unfoldedLines.length > 0) {
+                    unfoldedLines[unfoldedLines.length - 1] += line.substring(1);
+                }
+            } else {
+                unfoldedLines.push(line);
+            }
+        }
+        
+        let inEvent = false;
+        let currentEvent = {};
+        let currentRrule = null;
+        
+        for (const rawLine of unfoldedLines) {
+            const line = rawLine.trim();
+            const upperLine = line.toUpperCase();
+            
+            // Check boundaries
+            if (upperLine.startsWith('BEGIN:VEVENT')) {
+                inEvent = true;
+                currentEvent = {};
+                currentRrule = null;
+                continue;
+            }
+            if (upperLine.startsWith('END:VEVENT')) {
+                inEvent = false;
+                if (currentEvent.start && currentEvent.summary) {
+                    // Push the original/first event
+                    events.push({...currentEvent});
+                    
+                    // Handle RRULE expansion (Basic Weekly support)
+                    if (currentRrule) {
+                        const expanded = Krankomat.Utils.expandRRULE(currentEvent, currentRrule);
+                        events.push(...expanded);
+                    }
+                }
+                continue;
+            }
+
+            if (inEvent) {
+                if (upperLine.startsWith('DTSTART')) {
+                    const idx = line.indexOf(':');
+                    if (idx !== -1) {
+                         currentEvent.start = line.substring(idx + 1).trim();
+                    }
+                } else if (upperLine.startsWith('SUMMARY')) {
+                    const idx = line.indexOf(':');
+                    if (idx !== -1) {
+                        let summaryVal = line.substring(idx + 1).trim();
+                        // Handle "Code:Name" convention
+                        const codeIdx = summaryVal.indexOf(':');
+                        if (codeIdx !== -1) {
+                            currentEvent.summary = summaryVal.substring(codeIdx + 1).trim();
+                        } else {
+                            currentEvent.summary = summaryVal;
+                        }
+                    }
+                } else if (upperLine.startsWith('LOCATION')) {
+                    const idx = line.indexOf(':');
+                    if (idx !== -1) {
+                         // Extract and clean location (unescape commas)
+                         currentEvent.location = line.substring(idx + 1).trim().replace(/\\,/g, ',');
+                    }
+                } else if (upperLine.startsWith('RRULE')) {
+                    const idx = line.indexOf(':');
+                    if (idx !== -1) {
+                        currentRrule = line.substring(idx + 1).trim();
+                    }
+                }
+            }
+        }
+        return events;
+    },
+
+    expandRRULE: (baseEvent, rruleStr) => {
+        const expandedEvents = [];
+        // Parse RRULE parts: FREQ=WEEKLY;UNTIL=20260101;INTERVAL=1...
+        const parts = rruleStr.split(';').reduce((acc, part) => {
+            const [key, val] = part.split('=');
+            acc[key] = val;
+            return acc;
+        }, {});
+
+        // We only support WEEKLY for typical semester plans
+        if (parts['FREQ'] !== 'WEEKLY') return [];
+
+        const interval = parts['INTERVAL'] ? parseInt(parts['INTERVAL']) : 1;
+        const count = parts['COUNT'] ? parseInt(parts['COUNT']) : null;
+        const untilStr = parts['UNTIL']; // e.g., 20260214T000000Z
+
+        const startDate = Krankomat.Utils.parseIcsDateStringToJsDate(baseEvent.start);
+        if (!startDate) return [];
+
+        let untilDate = untilStr ? Krankomat.Utils.parseIcsDateStringToJsDate(untilStr) : null;
+        
+        // Fix for inclusive UNTIL date: If UNTIL is just a date (length 8), it implies the end of that day.
+        // We set it to 23:59:59 to ensure inclusive comparison against event start times.
+        if (untilDate && untilStr.replace('Z','').trim().length === 8) {
+            untilDate.setHours(23, 59, 59, 999);
+        }
+        
+        // Safety limit to prevent infinite loops if RRULE is malformed
+        const MAX_OCCURRENCES = 100; 
+        
+        let occurrences = 0;
+        let currentDate = new Date(startDate);
+
+        // Advance to first repetition (original event is already added)
+        currentDate.setDate(currentDate.getDate() + (7 * interval));
+
+        while (occurrences < MAX_OCCURRENCES) {
+            // Check UNTIL
+            if (untilDate && currentDate > untilDate) break;
+            
+            // Check COUNT (Note: COUNT usually includes the first one, so we subtract 1 since base is added)
+            if (count && (occurrences + 1) >= count) break;
+            
+            // Create event
+            const newEvent = {
+                summary: baseEvent.summary,
+                start: Krankomat.Utils.formatJsDateToIcsString(currentDate),
+                location: baseEvent.location // Preserve location
+            };
+            expandedEvents.push(newEvent);
+
+            // Next step
+            currentDate.setDate(currentDate.getDate() + (7 * interval));
+            occurrences++;
+        }
+
+        return expandedEvents;
+    },
+
+    // Convert ICS date (YYYYMMDD or YYYYMMDDTHHMMSS) to app format (DD.MM.YYYY)
+    convertICSDateToAppDate: (icsDateStr) => {
+        if (!icsDateStr) return null;
+        // Basic parsing for YYYYMMDD
+        const year = icsDateStr.substring(0, 4);
+        const month = icsDateStr.substring(4, 6);
+        const day = icsDateStr.substring(6, 8);
+        return `${day}.${month}.${year}`;
     },
 
     renderTemplate: (template, context) => {

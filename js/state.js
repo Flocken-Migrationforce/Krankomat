@@ -1,4 +1,5 @@
 
+
 window.Krankomat = window.Krankomat || {};
 
 Krankomat.State = {
@@ -6,14 +7,14 @@ Krankomat.State = {
         userData: {
             firstName: 'Max',
             lastName: 'Mustermann',
-            studentId: '1234567',
+            // StudentId is no longer part of the defaults visible on load
             email: 'max.mustermann@example.com',
             studyProgram: 'E-Government',
         },
         recipientsStructure: [
             { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'ZPD (Zentrum für Personaldienste)', isSelected: true },
-            { id: 2, anrede: 'Sehr geehrter Herr Angelstein', module: 'Projektmanagement', isSelected: true },
         ],
+        // Default static timetable if no ICS is loaded
         timetable: [
             { day: 'Montag', module: 'IT-Projektmanagement' },
             { day: 'Dienstag', module: 'Grundlagen der BWL' },
@@ -21,7 +22,19 @@ Krankomat.State = {
             { day: 'Donnerstag', module: 'Software Engineering' },
             { day: 'Freitag', module: 'IT-Projektmanagement' },
         ],
-        absenceReasons: { lecture: true, internship: false, exam: false, partialDay: false }
+        absenceReasons: { lecture: true, internship: false, exam: false, partialDay: false },
+        calendarEvents: [], // Stores parsed ICS events
+        emailDirectory: { // Maps Course Name to Email
+            "IT-Projektmanagement": "prof.it@example.com",
+            "Grundlagen der BWL": "prof.bwl@example.com"
+        },
+        config: {
+            headerButtons: {
+                fileshare: true,
+                calendar: true,
+                mensa: true
+            }
+        }
     },
 
     data: {},
@@ -50,6 +63,10 @@ Krankomat.State = {
         this.data.absenceReasons = { ...this.defaults.absenceReasons, ...this.loadJSONState('krankomat_absenceReasons', {}) };
         this.data.details = this.loadJSONState('krankomat_details', { comments: '' });
         
+        this.data.calendarEvents = this.loadJSONState('krankomat_calendarEvents', []);
+        this.data.emailDirectory = this.loadJSONState('krankomat_emailDirectory', this.defaults.emailDirectory);
+        this.data.config = this.loadJSONState('krankomat_config', this.defaults.config);
+
         // Merge recipients logic
         const baseRecipients = this.defaults.recipientsStructure.map(r => ({ ...r, email: '' }));
         const savedRecipients = this.loadJSONState('krankomat_recipients', []);
@@ -71,6 +88,10 @@ Krankomat.State = {
             localStorage.setItem('krankomat_sicknessEndDate', JSON.stringify(this.data.sicknessEndDate));
             localStorage.setItem('krankomat_absenceReasons', JSON.stringify(this.data.absenceReasons));
             localStorage.setItem('krankomat_details', JSON.stringify(this.data.details));
+            localStorage.setItem('krankomat_calendarEvents', JSON.stringify(this.data.calendarEvents));
+            localStorage.setItem('krankomat_emailDirectory', JSON.stringify(this.data.emailDirectory));
+            localStorage.setItem('krankomat_config', JSON.stringify(this.data.config));
+            
             if (this.data.recipients && this.data.recipients.length > 0) {
                 localStorage.setItem('krankomat_recipients', JSON.stringify(this.data.recipients));
             }

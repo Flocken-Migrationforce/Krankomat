@@ -1,10 +1,14 @@
 
+
 window.Krankomat = window.Krankomat || {};
 
 Krankomat.Builder = {
     init: function() {
         this.bindEvents();
         this.render();
+        
+        // Immediately calculate recipients based on the loaded date/calendar to auto-populate
+        this.recalculateRecipients();
         
         // Bind recipients events once here instead of inside render
         const recipientsContainer = document.getElementById('recipients-list-container');
@@ -15,7 +19,7 @@ Krankomat.Builder = {
 
     bindEvents: function() {
         // User Data Inputs
-        ['firstName', 'lastName', 'studentId'].forEach(field => {
+        ['firstName', 'lastName'].forEach(field => {
             const el = document.getElementById(field);
             if (el) {
                 el.addEventListener('input', (e) => {
@@ -29,7 +33,7 @@ Krankomat.Builder = {
         if (startEl) {
             startEl.addEventListener('input', (e) => {
                 Krankomat.State.set('sicknessStartDate', e.target.value);
-                this.updateRecipientsBasedOnDate(e.target.value);
+                this.recalculateRecipients();
             });
         }
         
@@ -40,6 +44,9 @@ Krankomat.Builder = {
             });
         }
 
+        // ICS Upload Handling is now in App.js / Settings Modal
+        // but we expose the logic handler here
+        
         // Buttons for type
         document.getElementById('btn-type-krank').addEventListener('click', () => Krankomat.State.set('sicknessEndDate', ''));
         document.getElementById('btn-type-gesund').addEventListener('click', () => {
@@ -70,41 +77,204 @@ Krankomat.Builder = {
             });
         }
     },
+
+    handleIcsUpload: function(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const events = Krankomat.Utils.parseICS(ev.target.result);
+                Krankomat.State.set('calendarEvents', events);
+                
+                // Auto-expand Email Directory with new courses
+                const directory = Krankomat.State.get('emailDirectory') || {};
+                let dirChanged = false;
+                events.forEach(evt => {
+                    if (evt.summary && !directory.hasOwnProperty(evt.summary)) {
+                        directory[evt.summary] = ""; // Initialize with empty email
+                        dirChanged = true;
+                    }
+                });
+                if (dirChanged) {
+                    Krankomat.State.set('emailDirectory', directory);
+                }
+
+                // Re-evaluate recipients with new data
+                this.recalculateRecipients();
+                
+                // Visual Feedback
+                const status = document.getElementById('calendar-status');
+                if (status) {
+                    status.innerText = `${events.length} Termine`;
+                    status.classList.remove('hidden');
+                    setTimeout(() => status.classList.add('hidden'), 5000);
+                }
+                alert(`Erfolg: ${events.length} Termine importiert.`);
+            } catch (err) {
+                alert("Fehler beim Lesen der Kalenderdatei.");
+                console.error(err);
+            }
+        };
+        reader.readAsText(file);
+    },
     
     bindRecipientEvents: function(container) {
         container.addEventListener('change', (e) => {
             if (e.target.dataset.recipientId) {
-                const id = parseInt(e.target.dataset.recipientId);
+                const id = e.target.dataset.recipientId; // String match for non-numeric IDs like 'exam-office'
                 const currentRecipients = Krankomat.State.get('recipients');
-                const newRecipients = currentRecipients.map(r => r.id === id ? { ...r, isSelected: e.target.checked } : r);
+                const newRecipients = currentRecipients.map(r => r.id.toString() === id ? { ...r, isSelected: e.target.checked } : r);
                 Krankomat.State.set('recipients', newRecipients);
             }
         });
 
         container.addEventListener('input', (e) => {
              if (e.target.dataset.recipientEmailId) {
-                const id = parseInt(e.target.dataset.recipientEmailId);
+                const id = e.target.dataset.recipientEmailId;
                 const currentRecipients = Krankomat.State.get('recipients');
-                // We update state which triggers notify -> render. 
-                // The updated renderRecipientsList handles focus preservation.
-                const newRecipients = currentRecipients.map(r => r.id === id ? { ...r, email: e.target.value } : r);
+                const newRecipients = currentRecipients.map(r => r.id.toString() === id ? { ...r, email: e.target.value } : r);
+                
+                // If user manually enters email, save it to directory for future use
+                const recipient = currentRecipients.find(r => r.id.toString() === id);
+                if (recipient && recipient.module) {
+                    const dir = Krankomat.State.get('emailDirectory') || {};
+                    dir[recipient.module] = e.target.value;
+                    Krankomat.State.set('emailDirectory', dir);
+                }
+
                 Krankomat.State.set('recipients', newRecipients);
              }
         });
     },
 
-    updateRecipientsBasedOnDate: function(dateStr) {
-        const day = Krankomat.Utils.getDayOfWeek(dateStr);
-        if (!day) return;
+    capitalizeName: function(str) {
+        if (!str) return '';
+        // Handles hyphenated names like "Ann-Kathrin"
+        return str.split('-').map(part => 
+            part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        ).join('-');
+    },
+
+    extractNameFromEmail: function(email) {
+        if (!email || !email.includes('@')) return null;
         
+        const localPart = email.split('@')[0];
+        // Remove numbers (e.g. m.muster2)
+        const cleanLocal = localPart.replace(/[0-9]/g, '');
+        
+        const parts = cleanLocal.split('.');
+        // require at least two parts (first.last) to form a name
+        if (parts.length < 2) return null; 
+
+        const nameParts = parts
+            .filter(p => p.length > 0)
+            .map(p => this.capitalizeName(p));
+            
+        if (nameParts.length === 0) return null;
+        
+        return nameParts.join(' ');
+    },
+
+    // Central function to rebuild the recipients list based on Date AND Exam status
+    recalculateRecipients: function() {
         const data = Krankomat.State.data;
-        const timetable = Krankomat.State.defaults.timetable;
-        const todaysModules = timetable.filter(e => e.day.toLowerCase() === day.toLowerCase()).map(e => e.module.toLowerCase());
+        const rawDateStr = data.sicknessStartDate || '';
         
-        const newRecipients = data.recipients.map(r => ({
-            ...r,
-            isSelected: r.module.includes('ZPD') || todaysModules.some(mod => r.module.toLowerCase().includes(mod))
-        }));
+        // Normalize Date String to DD.MM.YYYY (ensure padding)
+        const normalizeDate = (str) => {
+            if (!str) return '';
+            const parts = str.split('.');
+            if (parts.length !== 3) return str;
+            return `${parts[0].padStart(2, '0')}.${parts[1].padStart(2, '0')}.${parts[2]}`;
+        };
+        const dateStr = normalizeDate(rawDateStr);
+
+        const calendarEvents = data.calendarEvents || [];
+        const emailDirectory = data.emailDirectory || {};
+        const isExam = data.absenceReasons && data.absenceReasons.exam;
+
+        const zpd = { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'ZPD (Zentrum für Personaldienste)', isSelected: true, email: '' };
+        
+        // Preserve ZPD email if typed
+        const currentRecipients = data.recipients || [];
+        const currentZPD = currentRecipients.find(r => r.id === 1);
+        if (currentZPD && currentZPD.email) zpd.email = currentZPD.email;
+
+        let newRecipients = [zpd];
+
+        // 1. Exam / Prüfungsamt
+        if (isExam) {
+            const examOffice = {
+                id: 'exam-office',
+                anrede: 'Sehr geehrte Damen und Herren vom Prüfungsamt',
+                module: 'Prüfungsamt (FSB PuMa)',
+                isSelected: true,
+                email: 'pruefungsamt-berlinertor-sp2@haw-hamburg.de'
+            };
+            newRecipients.push(examOffice);
+        }
+
+        // 2. Calendar / Timetable
+        if (calendarEvents.length > 0) {
+            // Logic with ICS Data
+            // Filter events that match the normalized date string
+            const dayEvents = calendarEvents.filter(evt => {
+                const appDate = Krankomat.Utils.convertICSDateToAppDate(evt.start);
+                return appDate === dateStr;
+            });
+            
+            // Map to recipient objects
+            const eventRecipients = dayEvents.map((evt, index) => {
+                const moduleName = evt.summary; // Already cleaned by parser
+                const knownEmail = emailDirectory[moduleName] || '';
+                
+                let anrede = `Sehr geehrte/r Dozent/in für ${moduleName}`;
+                if (knownEmail) {
+                    const extractedName = this.extractNameFromEmail(knownEmail);
+                    if (extractedName) {
+                        anrede = `Sehr geehrte/r ${extractedName}`;
+                    }
+                }
+
+                return {
+                    id: index + 2, // Offset ID after ZPD
+                    anrede: anrede,
+                    module: moduleName,
+                    isSelected: true, // Auto check based on date
+                    email: knownEmail
+                };
+            });
+            
+            newRecipients = [...newRecipients, ...eventRecipients];
+
+        } else {
+            // Fallback Logic (Legacy Day of Week)
+            const day = Krankomat.Utils.getDayOfWeek(dateStr);
+            if (day) {
+                const timetable = Krankomat.State.defaults.timetable;
+                const todaysModules = timetable.filter(e => e.day.toLowerCase() === day.toLowerCase()).map(e => e.module);
+                
+                const fallbackRecipients = todaysModules.map((mod, index) => {
+                    const knownEmail = emailDirectory[mod] || '';
+                    let anrede = `Sehr geehrte/r Dozent/in`;
+                    if (knownEmail) {
+                        const extractedName = this.extractNameFromEmail(knownEmail);
+                        if (extractedName) {
+                            anrede = `Sehr geehrte/r ${extractedName}`;
+                        }
+                    }
+
+                    return {
+                        id: index + 2,
+                        anrede: anrede,
+                        module: mod,
+                        isSelected: true,
+                        email: knownEmail
+                    };
+                });
+                 newRecipients = [...newRecipients, ...fallbackRecipients];
+            }
+        }
         
         Krankomat.State.set('recipients', newRecipients);
     },
@@ -113,6 +283,13 @@ Krankomat.Builder = {
         const data = Krankomat.State.data;
         if (!data.userData) return; // Safety check
 
+        // Calendar Status (in the header now)
+        const calendarStatus = document.getElementById('calendar-status');
+        if (calendarStatus && data.calendarEvents && data.calendarEvents.length > 0) {
+            calendarStatus.innerText = `Kalender: ${data.calendarEvents.length} Termine`;
+            calendarStatus.classList.remove('hidden');
+        }
+
         // Input values
         const firstNameInput = document.getElementById('firstName');
         if (firstNameInput && document.activeElement !== firstNameInput) firstNameInput.value = data.userData.firstName || '';
@@ -120,8 +297,7 @@ Krankomat.Builder = {
         const lastNameInput = document.getElementById('lastName');
         if (lastNameInput && document.activeElement !== lastNameInput) lastNameInput.value = data.userData.lastName || '';
         
-        const studentIdInput = document.getElementById('studentId');
-        if (studentIdInput && document.activeElement !== studentIdInput) studentIdInput.value = data.userData.studentId || '';
+        // StudentID is handled dynamically in renderAbsenceReasons for Exam
         
         const startDateInput = document.getElementById('startDate');
         if (startDateInput && document.activeElement !== startDateInput) startDateInput.value = data.sicknessStartDate || '';
@@ -137,17 +313,25 @@ Krankomat.Builder = {
         const krankBtn = document.getElementById('btn-type-krank');
         const gesundBtn = document.getElementById('btn-type-gesund');
         
-        if (!isGesund) {
-            krankBtn.className = "w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow";
-            gesundBtn.className = "w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600";
-        } else {
-            gesundBtn.className = "w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 bg-white dark:bg-slate-800 text-green-600 dark:text-green-400 shadow";
-            krankBtn.className = "w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600";
+        if (krankBtn && gesundBtn) {
+            if (!isGesund) {
+                krankBtn.className = "w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow";
+                gesundBtn.className = "w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600";
+            } else {
+                gesundBtn.className = "w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 bg-white dark:bg-slate-800 text-green-600 dark:text-green-400 shadow";
+                krankBtn.className = "w-1/2 py-2 text-sm font-semibold rounded-full transition-all duration-300 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600";
+            }
         }
 
         this.renderAbsenceReasons(data.absenceReasons);
         this.renderRecipientsList(data.recipients);
         this.renderCommentPresets(data.details.comments);
+        
+        // Handle conditional student ID focus retention
+        const condStudentId = document.getElementById('conditional-student-id');
+        if (condStudentId && document.activeElement !== condStudentId) {
+            condStudentId.value = data.userData.studentId || '';
+        }
     },
 
     renderAbsenceReasons: function(reasons) {
@@ -177,24 +361,72 @@ Krankomat.Builder = {
                     </span>
                 </label>
                 ${def.warning && reasons[def.id] ? `
-                <div class="mt-3 ml-8 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/30 rounded-lg text-sm text-blue-800 dark:text-blue-200 flex items-start space-x-3 transition-all duration-300 animate-fade-in">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" class="h-5 w-5 text-blue-500 dark:text-blue-400 mt-1 flex-shrink-0">
-                        <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/>
-                    </svg>
-                    <p><strong>Wichtiger Hinweis:</strong> Diese E-Mail ersetzt nicht die offizielle Prüfungsunfähigkeitsbescheinigung, die beim Prüfungsamt eingereicht werden muss.</p>
+                <div class="mt-3 ml-8 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/30 rounded-lg text-sm text-blue-800 dark:text-blue-200 transition-all duration-300 animate-fade-in">
+                    <div class="flex items-start space-x-3 mb-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" class="h-5 w-5 text-blue-500 dark:text-blue-400 mt-1 flex-shrink-0">
+                            <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <p class="mb-2"><strong>Wichtiger Hinweis:</strong> Senden Sie bitte zusätzlich Ihre Prüfungsunfähigkeitsbescheinigung an das Prüfungsamt.</p>
+                            <p class="text-xs mb-3">Bitte geben Sie hier Ihre Matrikelnummer an, damit sie im E-Mail-Text für das Prüfungsamt erscheint:</p>
+                            <p class="text-xs mb-2 text-amber-600 dark:text-amber-400 italic">Die Eingabe einer Matrikelnummer deaktiviert automatisch Dozenten als Empfänger, um Ihre Anonymität zu wahren.</p>
+                            <input id="conditional-student-id" type="text" placeholder="Matrikelnummer" class="form-input px-3 py-1.5 w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white" value="">
+                        </div>
+                    </div>
                 </div>` : ''}
             </div>
         `).join('');
         
-        // Only update innerHTML if it has changed to prevent unnecessary DOM thrashing
-        if (container.innerHTML !== html) {
-            container.innerHTML = html;
-            // Re-bind events for reasons
-            container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        // DOM update
+        const currentHTML = container.innerHTML;
+        if (currentHTML !== html) {
+             container.innerHTML = html;
+             
+             // Bind Checkboxes
+             container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                 cb.addEventListener('change', (e) => {
-                    Krankomat.State.updateNested('absenceReasons', e.target.dataset.reason, e.target.checked);
+                    const reason = e.target.dataset.reason;
+                    // Update state, then recalculate recipients (specifically for Exam)
+                    Krankomat.State.data.absenceReasons[reason] = e.target.checked;
+                    this.recalculateRecipients(); // This also saves and notifies
                 });
             });
+
+            // Bind Conditional Input
+            const condInput = document.getElementById('conditional-student-id');
+            if (condInput) {
+                condInput.value = Krankomat.State.data.userData.studentId || '';
+                condInput.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    Krankomat.State.data.userData.studentId = value;
+                    
+                    // PRIVACY LOGIC: If ID is present, deselect all professors (Ids != 1 and != 'exam-office')
+                    if (value.length > 0) {
+                        const recipients = Krankomat.State.get('recipients');
+                        let changed = false;
+                        const updatedRecipients = recipients.map(r => {
+                            // Keep ZPD (1) and Exam Office
+                            if (r.id !== 1 && r.id !== 'exam-office' && r.isSelected) {
+                                changed = true;
+                                return { ...r, isSelected: false };
+                            }
+                            return r;
+                        });
+                        
+                        if (changed) {
+                            Krankomat.State.set('recipients', updatedRecipients);
+                        } else {
+                            // Just save user data without full recipient set update loop to avoid cursor jump
+                            Krankomat.State.save();
+                        }
+                    } else {
+                        Krankomat.State.save();
+                    }
+                    
+                    // Manually trigger preview update only to update email body
+                    Krankomat.Preview.render(); 
+                });
+            }
         }
     },
 
@@ -202,23 +434,29 @@ Krankomat.Builder = {
         const container = document.getElementById('recipients-list-container');
         if (!recipients || !container) return;
         
-        // If container is empty, build from scratch
-        if (container.children.length === 0) {
+        // Always rebuild fully when length changes to handle dynamic updates properly
+        // Or if container is empty
+        if (container.children.length !== recipients.length) {
              container.innerHTML = recipients.map(r => this.buildRecipientRow(r)).join('');
              return;
         }
 
         // Update existing DOM to preserve focus
-        // This requires row count to be consistent, which it is in this app structure (fixed recipient list)
         recipients.forEach(r => {
             const checkbox = container.querySelector(`input[data-recipient-id="${r.id}"]`);
             const emailInput = container.querySelector(`input[data-recipient-email-id="${r.id}"]`);
+            const labelSpan = checkbox ? checkbox.closest('label').querySelector('span') : null;
 
             if (checkbox && checkbox.checked !== r.isSelected) {
                 checkbox.checked = r.isSelected;
             }
+            
+            // Update label text if module changes (dynamic dates)
+            if (labelSpan && labelSpan.innerText !== r.module) {
+                labelSpan.innerText = r.module;
+            }
 
-            // Only update value if it differs AND it is NOT the active element (to prevent cursor jumps)
+            // Only update value if it differs AND it is NOT the active element
             if (emailInput && emailInput.value !== (r.email || '') && document.activeElement !== emailInput) {
                 emailInput.value = r.email || '';
             }
