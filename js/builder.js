@@ -60,20 +60,24 @@ Krankomat.Builder = {
             Krankomat.State.updateNested('details', 'comments', e.target.value);
         });
 
-        // Manual Save
-        const saveBtn = document.getElementById('manual-save-btn');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => {
-                Krankomat.State.save();
-                const originalContent = saveBtn.innerHTML;
-                saveBtn.innerHTML = Krankomat.Utils.Icons.check + ' Gespeichert!';
-                saveBtn.classList.add('bg-green-500', 'text-white');
-                saveBtn.classList.remove('bg-indigo-100', 'text-indigo-700');
+        // Reset Date Button (Formerly Manual Save)
+        const resetBtn = document.getElementById('btn-reset-date');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                const today = Krankomat.Utils.todayFormatted();
+                Krankomat.State.set('sicknessStartDate', today);
+                this.recalculateRecipients();
+                
+                // Visual feedback
+                const originalContent = resetBtn.innerHTML;
+                resetBtn.innerHTML = Krankomat.Utils.Icons.check + ' Zurückgesetzt!';
+                resetBtn.classList.add('bg-green-100', 'text-green-700');
+                resetBtn.classList.remove('bg-indigo-100', 'text-indigo-700');
                 setTimeout(() => {
-                    saveBtn.innerHTML = originalContent;
-                    saveBtn.classList.remove('bg-green-500', 'text-white');
-                    saveBtn.classList.add('bg-indigo-100', 'text-indigo-700');
-                }, 2000);
+                    resetBtn.innerHTML = originalContent;
+                    resetBtn.classList.remove('bg-green-100', 'text-green-700');
+                    resetBtn.classList.add('bg-indigo-100', 'text-indigo-700');
+                }, 1500);
             });
         }
     },
@@ -118,7 +122,9 @@ Krankomat.Builder = {
                 const id = e.target.dataset.recipientId; // String match for non-numeric IDs like 'exam-office'
                 const currentRecipients = Krankomat.State.get('recipients');
                 const newRecipients = currentRecipients.map(r => r.id.toString() === id ? { ...r, isSelected: e.target.checked } : r);
-                Krankomat.State.set('recipients', newRecipients);
+                
+                // Sort after toggle to keep selected at top
+                this.sortAndSetRecipients(newRecipients);
             }
         });
 
@@ -139,6 +145,27 @@ Krankomat.Builder = {
                 Krankomat.State.set('recipients', newRecipients);
              }
         });
+    },
+
+    sortAndSetRecipients: function(recipients) {
+        // Sort: ZPD (id 1), Exam (id exam-office), then Selected, then Alphabetical
+        const sorted = [...recipients].sort((a, b) => {
+            // 1. ZPD always top
+            if (a.id === 1) return -1;
+            if (b.id === 1) return 1;
+            
+            // 2. Exam Office second
+            if (a.id === 'exam-office') return -1;
+            if (b.id === 'exam-office') return 1;
+
+            // 3. Selected checked boxes first
+            if (a.isSelected && !b.isSelected) return -1;
+            if (!a.isSelected && b.isSelected) return 1;
+
+            // 4. Alphabetical by module name
+            return (a.module || '').localeCompare(b.module || '');
+        });
+        Krankomat.State.set('recipients', sorted);
     },
 
     capitalizeName: function(str) {
@@ -172,6 +199,9 @@ Krankomat.Builder = {
     // Central function to rebuild the recipients list based on Date AND Exam status
     recalculateRecipients: function() {
         const data = Krankomat.State.data;
+        const config = data.config || {};
+        const showAll = config.showAllRecipients;
+
         const rawDateStr = data.sicknessStartDate || '';
         
         // Normalize Date String to DD.MM.YYYY (ensure padding)
@@ -208,66 +238,62 @@ Krankomat.Builder = {
             newRecipients.push(examOffice);
         }
 
-        // 2. Calendar / Timetable
+        // 2. Calendar / Timetable / All Recipients
+        // Determine "Today's Modules" for auto-selection purposes
+        let todaysModules = [];
         if (calendarEvents.length > 0) {
-            // Logic with ICS Data
-            // Filter events using the smart on-the-fly recurrence check
-            const dayEvents = calendarEvents.filter(evt => Krankomat.Utils.isEventOnDate(evt, dateStr));
-            
-            // Map to recipient objects
-            const eventRecipients = dayEvents.map((evt, index) => {
-                const moduleName = evt.summary; // Already cleaned by parser
-                const knownEmail = emailDirectory[moduleName] || '';
-                
-                let anrede = `Sehr geehrte/r Dozent/in für ${moduleName}`;
-                if (knownEmail) {
-                    const extractedName = this.extractNameFromEmail(knownEmail);
-                    if (extractedName) {
-                        anrede = `Sehr geehrte/r ${extractedName}`;
-                    }
-                }
-
-                return {
-                    id: index + 2, // Offset ID after ZPD
-                    anrede: anrede,
-                    module: moduleName,
-                    isSelected: true, // Auto check based on date
-                    email: knownEmail
-                };
-            });
-            
-            newRecipients = [...newRecipients, ...eventRecipients];
-
+             const dayEvents = calendarEvents.filter(evt => Krankomat.Utils.isEventOnDate(evt, dateStr));
+             todaysModules = dayEvents.map(e => e.summary); 
         } else {
-            // Fallback Logic (Legacy Day of Week)
-            const day = Krankomat.Utils.getDayOfWeek(dateStr);
-            if (day) {
+             const day = Krankomat.Utils.getDayOfWeek(dateStr);
+             if (day) {
                 const timetable = Krankomat.State.defaults.timetable;
-                const todaysModules = timetable.filter(e => e.day.toLowerCase() === day.toLowerCase()).map(e => e.module);
-                
-                const fallbackRecipients = todaysModules.map((mod, index) => {
-                    const knownEmail = emailDirectory[mod] || '';
-                    let anrede = `Sehr geehrte/r Dozent/in`;
-                    if (knownEmail) {
-                        const extractedName = this.extractNameFromEmail(knownEmail);
-                        if (extractedName) {
-                            anrede = `Sehr geehrte/r ${extractedName}`;
-                        }
-                    }
-
-                    return {
-                        id: index + 2,
-                        anrede: anrede,
-                        module: mod,
-                        isSelected: true,
-                        email: knownEmail
-                    };
-                });
-                 newRecipients = [...newRecipients, ...fallbackRecipients];
-            }
+                todaysModules = timetable.filter(e => e.day.toLowerCase() === day.toLowerCase()).map(e => e.module);
+             }
         }
+
+        let modulesToList = [];
         
-        Krankomat.State.set('recipients', newRecipients);
+        if (showAll) {
+             // Show all unique keys from directory, plus today's modules if missing from directory
+             const allKeys = new Set([...Object.keys(emailDirectory), ...todaysModules]);
+             modulesToList = Array.from(allKeys).sort();
+        } else {
+             // Only show modules relevant for today
+             modulesToList = todaysModules;
+        }
+
+        const generatedRecipients = modulesToList.map((modName, index) => {
+            const knownEmail = emailDirectory[modName] || '';
+            let anrede = `Sehr geehrte/r Dozent/in für ${modName}`;
+            if (knownEmail) {
+                const extractedName = this.extractNameFromEmail(knownEmail);
+                if (extractedName) {
+                    anrede = `Sehr geehrte/r ${extractedName}`;
+                }
+            }
+            
+            // Auto-select logic
+            // If showAll=true: Select only if it matches today's modules.
+            // If showAll=false: Select true (since it IS today's module).
+            let shouldSelect = true;
+            if (showAll) {
+                shouldSelect = todaysModules.includes(modName);
+            }
+
+            return {
+                id: index + 2, // Offset ID after ZPD
+                anrede: anrede,
+                module: modName,
+                isSelected: shouldSelect,
+                email: knownEmail
+            };
+        });
+        
+        newRecipients = [...newRecipients, ...generatedRecipients];
+        
+        // Apply sorting
+        this.sortAndSetRecipients(newRecipients);
     },
 
     render: function() {

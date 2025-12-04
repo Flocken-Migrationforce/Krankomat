@@ -131,11 +131,14 @@ Mit freundlichen Grüßen
         // Buttons
         const toMailtoValue = email.toList.join(',');
         const outlookBtn = document.getElementById('open-outlook-btn');
-        const mailtoLink = document.getElementById('open-mailto-link');
+        const androidBtn = document.getElementById('btn-mail-android');
+        const iosBtn = document.getElementById('btn-mail-ios');
         const outlookTooltip = document.getElementById('outlook-tooltip');
 
         if (outlookBtn) {
             if (email.toList.length > 0) {
+                // Outlook Web Link (Universal Link for iOS App often intercepts this too)
+                // This satisfies the "open outlook through a website or the Outlook App" requirement
                 const outlookHref = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(email.to)}&subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
                 const mailtoHref = `mailto:${toMailtoValue}?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
                 
@@ -143,19 +146,37 @@ Mit freundlichen Grüßen
                 outlookBtn.onclick = () => window.open(outlookHref, '_blank', 'noopener,noreferrer');
                 if (outlookTooltip) outlookTooltip.classList.add('hidden');
                 
-                if (mailtoLink) {
-                    mailtoLink.href = mailtoHref;
-                    mailtoLink.classList.remove('opacity-50', 'cursor-not-allowed');
-                    mailtoLink.classList.add('hover:bg-slate-50', 'dark:hover:bg-slate-600');
+                // Android Button: Standard mailto
+                if (androidBtn) {
+                    androidBtn.href = mailtoHref;
+                    androidBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    androidBtn.classList.add('hover:bg-slate-50', 'dark:hover:bg-slate-600');
+                }
+                
+                // iOS Button: Outlook Web/App Link
+                if (iosBtn) {
+                    iosBtn.href = "#"; 
+                    iosBtn.onclick = (e) => {
+                        e.preventDefault();
+                        // Open Outlook Deep Link in new tab (often triggers app on mobile or goes to OWA)
+                        window.open(outlookHref, '_blank', 'noopener,noreferrer');
+                    };
+                    iosBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    iosBtn.classList.add('hover:bg-slate-50', 'dark:hover:bg-slate-600');
                 }
             } else {
                 outlookBtn.disabled = true;
                 outlookBtn.onclick = null;
                 if (outlookTooltip) outlookTooltip.classList.remove('hidden'); 
                 
-                if (mailtoLink) {
-                    mailtoLink.removeAttribute('href');
-                    mailtoLink.classList.add('opacity-50', 'cursor-not-allowed');
+                if (androidBtn) {
+                    androidBtn.removeAttribute('href');
+                    androidBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+                if (iosBtn) {
+                    iosBtn.removeAttribute('href');
+                    iosBtn.onclick = null;
+                    iosBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 }
             }
         }

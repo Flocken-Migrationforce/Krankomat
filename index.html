@@ -80,7 +80,7 @@
             </svg>
             <div>
               <h1 class="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white">
-                Krankomat <span class="text-indigo-600">WebApp</span>
+                Krankomat <span id="app-title-suffix" class="text-indigo-600">WebApp</span>
               </h1>
               <p class="text-xs lg:text-sm text-slate-500 dark:text-slate-400 mt-1 hidden sm:block">
                 Das Krankomat-Entwicklerteam: Fabian Flocken, Laurin Bennet Jaetschmann, Marvin Junk und Cederic Langpaap
@@ -120,7 +120,7 @@
     <main id="main-content" class="container mx-auto p-4 lg:p-8 transition-all duration-500 flex-grow">
       
       <!-- Disclaimer -->
-      <div id="disclaimer-container" class="hidden mb-8 p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-500 rounded-r-lg shadow-md animate-fade-in">
+      <div id="disclaimer-container" class="hidden mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 dark:border-amber-500 rounded-r-lg shadow-md animate-fade-in">
           <div class="flex">
             <div class="py-1">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" class="h-8 w-8 text-amber-500 dark:text-amber-400 mr-4 flex-shrink-0">
@@ -140,6 +140,31 @@
                 </svg>
               </button>
             </div>
+          </div>
+      </div>
+
+      <!-- Config Reminder Banner -->
+      <div id="config-banner-container" class="hidden mb-8 p-4 bg-indigo-50 dark:bg-indigo-900/10 border-2 border-dashed border-indigo-300 dark:border-indigo-500/50 rounded-lg animate-fade-in relative">
+          <div class="flex items-start">
+             <div class="py-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500 dark:text-indigo-400 mr-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+             </div>
+             <div>
+                <p class="font-bold text-indigo-800 dark:text-indigo-200">Konfiguration laden</p>
+                <p class="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
+                   Haben Sie eine Konfigurationsdatei? Laden Sie Ihre <strong>[Name]_config.json</strong> in den Einstellungen hoch, um Ihr Profil und den Stundenplan wiederherzustellen.
+                </p>
+                <button id="open-settings-shortcut" class="mt-2 text-sm font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 underline">
+                   Einstellungen öffnen
+                </button>
+             </div>
+             <button id="dismiss-config-banner-btn" class="absolute top-2 right-2 text-indigo-400 hover:text-indigo-600 dark:text-indigo-500 dark:hover:text-indigo-300 focus:outline-none p-2 rounded-full transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" fill="currentColor" class="h-4 w-4">
+                  <path d="M310.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L160 210.7 54.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L114.7 256 9.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 301.3 265.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L205.3 256 310.6 150.6z"/>
+                </svg>
+             </button>
           </div>
       </div>
 
@@ -183,9 +208,11 @@
                   </div>
               </div>
               <div class="flex justify-end pt-4 mt-2">
-                  <button id="manual-save-btn" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:hover:bg-indigo-500/30">
-                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" class="h-4 w-4 mr-2"><path d="M64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V173.3c0-17-6.7-33.3-18.7-45.3L352 50.7C340 38.7 323.7 32 306.7 32H64zm0 96c0-17.7 14.3-32 32-32H288c17.7 0 32 14.3 32 32v64c0 17.7-14.3 32-32 32H96c-17.7 0-32-14.3-32-32V128zM224 288a64 64 0 1 1 0 128 64 64 0 1 1 0-128z"/></svg>
-                     Speichern
+                  <button id="btn-reset-date" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:hover:bg-indigo-500/30">
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
+                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                     </svg>
+                     Datum zurücksetzen
                   </button>
               </div>
             </div>
@@ -295,10 +322,20 @@
                 </div>
                 
                 <div class="relative group w-full mt-3">
-                   <a id="open-mailto-link" href="#" target="_blank" rel="noopener noreferrer" class="w-full inline-flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 text-sm font-medium rounded-md shadow-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 transition-colors disabled:opacity-50">
-                      <svg class="h-5 w-5 mr-2" viewBox="83 288 265 122" xmlns="http://www.w3.org/2000/svg"><path fill="#32de84" d="m 263.837 306.59 l 21.9331 -37.9944 c 1.2377 -2.12998 0.48933 -4.83565 -1.61189 -6.07335 c -2.1012 -1.23768 -4.83565 -0.5181 -6.04456 1.61189 l -22.221 38.4837 c -16.9536 -7.74281 -36.0371 -12.0604 -56.5599 -12.0604 c -20.5227 0 -39.6063 4.31754 -56.5599 12.0604 l -22.221 -38.4837 c -1.2377 -2.12999 -3.94336 -2.84957 -6.07335 -1.61189 c -2.13 1.2377 -2.84959 3.94337 -1.61189 6.07335 l 21.9331 37.9944 c -37.8217 20.494 -63.4392 58.7762 -67.6703 103.592 h 264.407 c -4.2312 -44.8161 -29.8487 -83.0984 -67.6991 -103.592 Z m -125.209 66.4614 c -6.13092 0 -11.0817 -4.97957 -11.0817 -11.0817 c 0 -6.13093 4.97957 -11.0817 11.0817 -11.0817 c 6.13092 0 11.0817 4.97956 11.0817 11.0817 c 0.0289 6.10212 -4.95079 11.0817 -11.0817 11.0817 Z m 121.381 0 c -6.13091 0 -11.0817 -4.97957 -11.0817 -11.0817 c 0 -6.13093 4.97958 -11.0817 11.0817 -11.0817 c 6.13093 0 11.0817 4.97956 11.0817 11.0817 c 0.0288 6.10212 -4.95077 11.0817 -11.0817 11.0817 Z"/></svg>
-                      Öffnen mit Standard Mail-Programm
-                   </a>
+                   <div class="grid grid-cols-2 gap-3">
+                       <a id="btn-mail-android" href="#" target="_blank" rel="noopener noreferrer" class="w-full inline-flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 text-xs sm:text-sm font-medium rounded-md shadow-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 transition-colors disabled:opacity-50">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-green-500" viewBox="0 0 576 512" fill="currentColor">
+                              <path d="M420.55,301.93a24,24,0,1,1,24-24,24,24,0,0,1-24,24m-265.1,0a24,24,0,1,1,24-24,24,24,0,0,1-24,24m273.7-144.48,47.94-83a10,10,0,1,0-17.27-10h0l-48.54,84.07A301.25,301.25,0,0,0,288,135.76a301.32,301.32,0,0,0-123.29,12.76L116.18,64.45a10,10,0,1,0-17.27,10h0l47.94,83C64.53,202.22,8.24,285.55,0,384H576c-8.24-98.45-64.54-181.78-146.85-226.55"/>
+                          </svg>
+                          Mail (Android/PC)
+                       </a>
+                       <a id="btn-mail-ios" href="#" class="w-full inline-flex items-center justify-center px-4 py-2 border border-slate-300 dark:border-slate-600 text-xs sm:text-sm font-medium rounded-md shadow-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-indigo-500 transition-colors disabled:opacity-50">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-slate-800 dark:text-white" viewBox="0 0 384 512" fill="currentColor">
+                              <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
+                          </svg>
+                          Outlook (iOS)
+                       </a>
+                   </div>
                 </div>
              </div>
           </div>
@@ -308,7 +345,7 @@
 
     <footer class="py-4 text-center opacity-10 hover:opacity-100 transition-opacity duration-500">
        <div class="text-xs font-mono text-slate-500">
-          v1.1.0
+          v1.1.1
        </div>
     </footer>
 
