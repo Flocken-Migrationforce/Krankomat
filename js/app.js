@@ -185,6 +185,9 @@ Krankomat.App = {
         const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true };
         const supportEmail = config.supportEmail || "support@krankomat.cloud";
         const showAll = config.showAllRecipients || false;
+        const currentColor = config.colorTheme || 'indigo';
+        
+        const palettes = ['indigo', 'blue', 'rose', 'emerald', 'amber', 'violet'];
 
         container.innerHTML = `
           <div class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm transition-all" id="expert-backdrop">
@@ -208,7 +211,8 @@ Krankomat.App = {
                   <!-- App Theme -->
                   <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
                      <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3">Darstellung</h3>
-                     <div class="flex items-center justify-between">
+                     
+                     <div class="flex items-center justify-between mb-4">
                          <span class="text-sm text-slate-600 dark:text-slate-300">Dark Mode</span>
                          <button id="theme-toggle-btn" type="button" class="relative inline-flex items-center h-8 w-14 cursor-pointer rounded-full bg-slate-200 dark:bg-slate-700 transition-colors duration-300">
                             <span id="theme-toggle-indicator" class="translate-x-1 absolute left-0 inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white shadow-lg transition-transform duration-300 ease-in-out">
@@ -216,21 +220,41 @@ Krankomat.App = {
                             </span>
                          </button>
                      </div>
+                     
+                     <hr class="my-3 border-slate-200 dark:border-slate-600">
+                     
+                     <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 uppercase tracking-wide">Farbthema</h4>
+                     <div class="flex flex-wrap gap-3">
+                        ${palettes.map(color => `
+                            <button class="w-8 h-8 rounded-full border-2 transition-all duration-200 flex items-center justify-center color-theme-btn" 
+                                style="background-color: var(--color-${color}); ${currentColor === color ? 'border-color: var(--color-slate-400); transform: scale(1.1);' : 'border-color: transparent;'}"
+                                data-color="${color}" 
+                                title="${color.charAt(0).toUpperCase() + color.slice(1)}">
+                                ${currentColor === color ? '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white drop-shadow-md" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>' : ''}
+                            </button>
+                        `).join('')}
+                     </div>
+                     <!-- Hidden styles to help render the buttons above correctly using hardcoded values if vars fail, but mostly relying on colors.js -->
+                     <style>
+                        :root {
+                            --color-indigo: #4f46e5; --color-blue: #2563eb; --color-rose: #e11d48; 
+                            --color-emerald: #059669; --color-amber: #d97706; --color-violet: #7c3aed;
+                        }
+                     </style>
                   </div>
 
-                  <!-- UI Settings Section -->
+                  <!-- UI Settings Section (Merged) -->
                   <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
                      <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3">Benutzeroberfläche</h3>
-                     <label class="flex items-center space-x-2">
+                     <label class="flex items-center space-x-2 mb-2">
                         <input type="checkbox" id="setting-show-all-recipients" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" ${showAll ? 'checked' : ''}>
                         <span class="text-sm text-slate-600 dark:text-slate-300">Alle bekannten Empfänger anzeigen (statt nur Tagesauswahl)</span>
                      </label>
-                  </div>
 
-                  <!-- UI Toggle Section -->
-                  <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-                    <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Benutzeroberfläche (Header)</h3>
-                    <div class="space-y-2">
+                     <hr class="my-3 border-slate-200 dark:border-slate-600">
+                     
+                     <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 uppercase tracking-wide">Header Buttons</h4>
+                     <div class="space-y-2">
                         <label class="flex items-center space-x-2">
                             <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="fileshare" ${buttons.fileshare ? 'checked' : ''}>
                             <span class="text-sm text-slate-600 dark:text-slate-300">Dateifreigabe (Cloud-Link)</span>
@@ -317,6 +341,16 @@ Krankomat.App = {
             };
         }
         Krankomat.Colors.renderToggle(); // Update icon state immediately
+        
+        // Bind Color Theme Buttons
+        container.querySelectorAll('.color-theme-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                const color = e.currentTarget.dataset.color;
+                Krankomat.Colors.setPalette(color);
+                // Re-render settings modal to update selection UI
+                this.renderSettingsModal(container);
+            };
+        });
 
         // Bind Show All Recipients Toggle
         const showAllCheck = document.getElementById('setting-show-all-recipients');
@@ -647,16 +681,37 @@ Krankomat.App = {
                         }
                     }
                     
+                    // Style logic for Location - Bounding Box changes
+                    // Default
+                    let containerClasses = "bg-indigo-50 dark:bg-slate-700/50 border-indigo-500";
+                    let locIconClass = "text-slate-500 dark:text-slate-400";
+                    let timeColorClass = "text-indigo-600 dark:text-indigo-400";
+
+                    if (evt.location) {
+                        const locLower = evt.location.toLowerCase();
+                        if (locLower.includes('asynchron')) {
+                            // Grey
+                            containerClasses = "bg-slate-100 dark:bg-slate-800 border-slate-400 dark:border-slate-500";
+                            locIconClass = "text-slate-500 italic";
+                            timeColorClass = "text-slate-600 dark:text-slate-400";
+                        } else if (locLower.includes('synchron')) {
+                            // Green
+                            containerClasses = "bg-green-50 dark:bg-green-900/20 border-green-500";
+                            locIconClass = "text-green-600 dark:text-green-400";
+                            timeColorClass = "text-green-700 dark:text-green-400";
+                        }
+                    }
+                    
                     html += `
-                        <div class="bg-indigo-50 dark:bg-slate-700/50 p-4 rounded-lg border-l-4 border-indigo-500">
+                        <div class="${containerClasses} p-4 rounded-lg border-l-4 transition-colors">
                             <h4 class="font-bold text-slate-800 dark:text-white break-words">${evt.summary}</h4>
-                            ${timeStr ? `<div class="flex items-center mt-2 text-sm text-indigo-600 dark:text-indigo-400">
+                            ${timeStr ? `<div class="flex items-center mt-2 text-sm ${timeColorClass}">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 ${timeStr} Uhr
                             </div>` : ''}
-                            ${evt.location ? `<div class="flex items-center mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            ${evt.location ? `<div class="flex items-center mt-1 text-xs ${locIconClass}">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />

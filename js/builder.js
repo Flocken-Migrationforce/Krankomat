@@ -44,9 +44,6 @@ Krankomat.Builder = {
             });
         }
 
-        // ICS Upload Handling is now in App.js / Settings Modal
-        // but we expose the logic handler here
-        
         // Buttons for type
         document.getElementById('btn-type-krank').addEventListener('click', () => Krankomat.State.set('sicknessEndDate', ''));
         document.getElementById('btn-type-gesund').addEventListener('click', () => {
@@ -60,7 +57,7 @@ Krankomat.Builder = {
             Krankomat.State.updateNested('details', 'comments', e.target.value);
         });
 
-        // Reset Date Button (Formerly Manual Save)
+        // Reset Date Button
         const resetBtn = document.getElementById('btn-reset-date');
         if (resetBtn) {
             resetBtn.addEventListener('click', () => {
@@ -68,15 +65,21 @@ Krankomat.Builder = {
                 Krankomat.State.set('sicknessStartDate', today);
                 this.recalculateRecipients();
                 
-                // Visual feedback
+                // Visual feedback with Dark Mode support
                 const originalContent = resetBtn.innerHTML;
                 resetBtn.innerHTML = Krankomat.Utils.Icons.check + ' Zurückgesetzt!';
-                resetBtn.classList.add('bg-green-100', 'text-green-700');
-                resetBtn.classList.remove('bg-indigo-100', 'text-indigo-700');
+                
+                // Add success classes (Green)
+                resetBtn.classList.add('bg-green-100', 'text-green-700', 'dark:bg-green-900/40', 'dark:text-green-300');
+                // Remove default classes (Indigo / Slate)
+                resetBtn.classList.remove('bg-indigo-100', 'text-indigo-700', 'dark:bg-slate-700', 'dark:text-indigo-300');
+                
                 setTimeout(() => {
                     resetBtn.innerHTML = originalContent;
-                    resetBtn.classList.remove('bg-green-100', 'text-green-700');
-                    resetBtn.classList.add('bg-indigo-100', 'text-indigo-700');
+                    // Revert to default classes (Indigo / Slate)
+                    resetBtn.classList.add('bg-indigo-100', 'text-indigo-700', 'dark:bg-slate-700', 'dark:text-indigo-300');
+                    // Remove success classes (Green)
+                    resetBtn.classList.remove('bg-green-100', 'text-green-700', 'dark:bg-green-900/40', 'dark:text-green-300');
                 }, 1500);
             });
         }
@@ -241,14 +244,33 @@ Krankomat.Builder = {
         // 2. Calendar / Timetable / All Recipients
         // Determine "Today's Modules" for auto-selection purposes
         let todaysModules = [];
+        const modulesSet = new Set(); // deduplication
+
         if (calendarEvents.length > 0) {
              const dayEvents = calendarEvents.filter(evt => Krankomat.Utils.isEventOnDate(evt, dateStr));
-             todaysModules = dayEvents.map(e => e.summary); 
+             
+             dayEvents.forEach(e => {
+                 // Check if location is asynchronous -> skip recipient logic if so
+                 if (e.location && e.location.toLowerCase().includes('asynchron')) {
+                     return;
+                 }
+                 
+                 // Deduplicate modules
+                 if (!modulesSet.has(e.summary)) {
+                     modulesSet.add(e.summary);
+                     todaysModules.push(e.summary);
+                 }
+             });
         } else {
              const day = Krankomat.Utils.getDayOfWeek(dateStr);
              if (day) {
                 const timetable = Krankomat.State.defaults.timetable;
-                todaysModules = timetable.filter(e => e.day.toLowerCase() === day.toLowerCase()).map(e => e.module);
+                timetable.filter(e => e.day.toLowerCase() === day.toLowerCase()).forEach(e => {
+                    if (!modulesSet.has(e.module)) {
+                         modulesSet.add(e.module);
+                         todaysModules.push(e.module);
+                    }
+                });
              }
         }
 
@@ -377,7 +399,7 @@ Krankomat.Builder = {
                             <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/>
                         </svg>
                         <div class="flex-1 min-w-0">
-                            <p class="mb-2"><strong>Wichtiger Hinweis:</strong> Senden Sie bitte zusätzlich Ihre Prüfungsunfähigkeitsbescheinigung an das Prüfungsamt.</p>
+                            <p class="mb-2 break-words"><strong>Wichtiger Hinweis:</strong> Senden Sie bitte zusätzlich Ihre Prüfungs&shy;unfähigkeits&shy;bescheinigung an das Prüfungsamt.</p>
                             <p class="text-xs mb-3">Bitte geben Sie hier Ihre Matrikelnummer an, damit sie im E-Mail-Text für das Prüfungsamt erscheint:</p>
                             <p class="text-xs mb-2 text-amber-600 dark:text-amber-400 italic">Die Eingabe einer Matrikelnummer deaktiviert automatisch Dozenten als Empfänger, um Ihre Anonymität zu wahren.</p>
                             <input id="conditional-student-id" type="text" placeholder="Matrikelnummer" class="form-input px-3 py-1.5 w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white" value="">
