@@ -300,12 +300,12 @@ Krankomat.App = {
                   </div>
 
                   <!-- Import Section -->
-                  <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/30">
-                    <h3 class="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-2">Konfiguration importieren</h3>
-                    <p class="text-xs text-indigo-600 dark:text-indigo-400 mb-3">
+                  <div class="p-4 bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-indigo-900">
+                    <h3 class="text-sm font-bold text-slate-700 dark:text-indigo-300 mb-2">Konfiguration importieren</h3>
+                    <p class="text-xs text-slate-500 dark:text-indigo-400 mb-3">
                       Laden Sie eine JSON-Datei hoch, um den aktuellen Status zu überschreiben. <strong>Warnung: Die Seite wird neu geladen.</strong>
                     </p>
-                    <label class="w-full flex flex-col items-center px-4 py-4 bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 rounded-lg shadow-sm tracking-wide uppercase border border-indigo-200 dark:border-slate-600 cursor-pointer hover:bg-indigo-50 dark:hover:bg-slate-600 transition-colors">
+                    <label class="w-full flex flex-col items-center px-4 py-4 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 rounded-lg shadow-sm tracking-wide uppercase border border-indigo-200 dark:border-slate-600 cursor-pointer hover:bg-indigo-50 dark:hover:bg-slate-600 transition-colors">
                         <svg class="w-6 h-6" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" /></svg>
                         <span class="mt-2 text-xs font-bold">JSON Datei auswählen</span>
                         <input type='file' id="expert-file-input" class="hidden" accept=".json" />
@@ -429,6 +429,9 @@ Krankomat.App = {
                         defaultConfig.profileName = nameMatch[1];
                         localStorage.setItem('krankomat_config', JSON.stringify(defaultConfig));
                     }
+                    
+                    // Mark config banner as dismissed
+                    localStorage.setItem('krankomat_configBannerDismissed', 'true');
                     
                     window.location.reload();
                 } catch (err) {
