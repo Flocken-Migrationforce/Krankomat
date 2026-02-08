@@ -1,5 +1,3 @@
-
-
 window.Krankomat = window.Krankomat || {};
 
 Krankomat.State = {
@@ -33,8 +31,10 @@ Krankomat.State = {
             headerButtons: {
                 fileshare: true,
                 calendar: true,
-                mensa: true
+                mensa: true,
+                verify: true
             },
+            verifyLink: "", // Variable to determine which link the double check button opens
             supportEmail: "support@krankomat.cloud",
             profileName: "WebApp"
         }

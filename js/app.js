@@ -1,5 +1,3 @@
-
-
 window.Krankomat = window.Krankomat || {};
 
 Krankomat.App = {
@@ -22,6 +20,7 @@ Krankomat.App = {
         this.setupModals();
         this.checkDisclaimer();
         this.checkConfigBanner();
+        this.setupVerifyButton();
         console.log('Krankomat initialized successfully.');
     },
 
@@ -42,7 +41,7 @@ Krankomat.App = {
 
     renderHeaderVisibility: function() {
         const config = Krankomat.State.get('config') || {};
-        const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true };
+        const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true, verify: true };
 
         const setVisibility = (id, isVisible) => {
             const el = document.getElementById(id);
@@ -55,7 +54,39 @@ Krankomat.App = {
         setVisibility('fileshare-btn', buttons.fileshare);
         setVisibility('calendar-toggle-btn', buttons.calendar);
         setVisibility('mensa-toggle-btn', buttons.mensa);
-        // Theme toggle is now in settings modal only
+        setVisibility('verify-btn', buttons.verify);
+        
+        // Update styling if link is missing
+        const verifyBtn = document.getElementById('verify-btn');
+        if (verifyBtn) {
+            verifyBtn.innerHTML = Krankomat.Utils.Icons.doubleCheck;
+            const link = config.verifyLink || "";
+            if (!link.trim()) {
+                verifyBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                verifyBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    },
+
+    setupVerifyButton: function() {
+        const btn = document.getElementById('verify-btn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                const config = Krankomat.State.get('config') || {};
+                let link = (config.verifyLink || "").trim();
+                
+                if (link) {
+                    // CRITICAL FIX: Ensure the link is absolute to prevent appending to current URL
+                    if (!/^https?:\/\//i.test(link)) {
+                        link = 'https://' + link;
+                    }
+                    window.open(link, '_blank', 'noopener,noreferrer');
+                } else {
+                    Krankomat.Utils.showToast("Kein Verifizierungs-Link in den Einstellungen konfiguriert.", "error");
+                }
+            });
+        }
     },
 
     checkDisclaimer: function() {
@@ -182,7 +213,8 @@ Krankomat.App = {
     renderSettingsModal: function(container) {
         // Retrieve current config
         const config = Krankomat.State.get('config') || {};
-        const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true };
+        const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true, verify: true };
+        const verifyLink = config.verifyLink || "";
         const supportEmail = config.supportEmail || "support@krankomat.cloud";
         const showAll = config.showAllRecipients || false;
         const currentColor = config.colorTheme || 'indigo';
@@ -256,6 +288,10 @@ Krankomat.App = {
                      <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 uppercase tracking-wide">Header Buttons</h4>
                      <div class="space-y-2">
                         <label class="flex items-center space-x-2">
+                            <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="verify" ${buttons.verify ? 'checked' : ''}>
+                            <span class="text-sm text-slate-600 dark:text-slate-300">Verifizierung (Doppelhaken)</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
                             <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="fileshare" ${buttons.fileshare ? 'checked' : ''}>
                             <span class="text-sm text-slate-600 dark:text-slate-300">Dateifreigabe (Cloud-Link)</span>
                         </label>
@@ -267,6 +303,15 @@ Krankomat.App = {
                             <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="mensa" ${buttons.mensa ? 'checked' : ''}>
                             <span class="text-sm text-slate-600 dark:text-slate-300">Mensa Menü</span>
                         </label>
+                    </div>
+
+                    <hr class="my-3 border-slate-200 dark:border-slate-600">
+                    <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 uppercase tracking-wide">Button Verknüpfungen</h4>
+                    <div class="space-y-3">
+                         <div class="flex flex-col">
+                            <label class="text-xs text-slate-500 dark:text-slate-400 mb-1">Verifizierungs-Link (URL)</label>
+                            <input type="url" id="setting-verify-link" placeholder="https://..." value="${verifyLink}" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-sm focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                         </div>
                     </div>
                   </div>
                   
@@ -352,6 +397,14 @@ Krankomat.App = {
             };
         });
 
+        // Bind Verify Link Input
+        const verifyLinkInput = document.getElementById('setting-verify-link');
+        if (verifyLinkInput) {
+            verifyLinkInput.addEventListener('input', (e) => {
+                Krankomat.State.updateNested('config', 'verifyLink', e.target.value);
+            });
+        }
+
         // Bind Show All Recipients Toggle
         const showAllCheck = document.getElementById('setting-show-all-recipients');
         if (showAllCheck) {
@@ -378,8 +431,9 @@ Krankomat.App = {
                 const target = e.target.dataset.target;
                 const isChecked = e.target.checked;
                 // Update State
+                const currentHeaderButtons = Krankomat.State.get('config').headerButtons || {};
                 Krankomat.State.updateNested('config', 'headerButtons', { 
-                    ...config.headerButtons,
+                    ...currentHeaderButtons,
                     [target]: isChecked 
                 });
             });
@@ -443,7 +497,6 @@ Krankomat.App = {
     },
 
     setupMensaModal: function() {
-        // ... (rest of the file remains unchanged)
         const toggleBtn = document.getElementById('mensa-toggle-btn');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {

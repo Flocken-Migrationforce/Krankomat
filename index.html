@@ -56,7 +56,9 @@
           'text-slate-400',
           'dark:text-slate-500',
           'italic',
-          'font-medium'
+          'font-medium',
+          'opacity-50',
+          'cursor-not-allowed'
         ],
         plugins: [],
       }
@@ -72,6 +74,7 @@
     <div id="settings-modal-container"></div>
     <div id="mensa-modal-container"></div>
     <div id="calendar-modal-container"></div>
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- Header -->
     <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-sm sticky top-0 z-20 transition-colors duration-300 border-b border-slate-200 dark:border-slate-800">
@@ -91,6 +94,9 @@
             </div>
           </div>
           <div class="flex items-center space-x-2 sm:space-x-4">
+            <button id="verify-btn" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors" title="Verifizierung">
+                <!-- Icon injected by JS -->
+            </button>
             <a id="fileshare-btn" href="https://hawhamburgedu.sharepoint.com/sites/EGov25-Cloud/Freigegebene%20Dokumente/Forms/AllItems.aspx" target="_blank" rel="noopener noreferrer" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors" title="Dateifreigabe öffnen">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" class="h-6 w-6">
                     <path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/>

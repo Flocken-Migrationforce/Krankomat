@@ -50,7 +50,8 @@ Krankomat.Colors = {
         
         // Initialize Color Palette from State
         const config = Krankomat.State.get('config') || {};
-        this.setPalette(config.colorTheme || 'indigo');
+        const paletteName = config.colorTheme || 'indigo';
+        this.setPalette(paletteName);
 
         const btn = document.getElementById('theme-toggle-btn');
         if (btn) {
@@ -70,11 +71,29 @@ Krankomat.Colors = {
             root.style.setProperty(`--color-primary-${shade}`, value);
         });
         
+        // Update Favicon
+        this.updateFavicon(colorName);
+
         // Update State if changed
         const currentConfig = Krankomat.State.get('config') || {};
         if (currentConfig.colorTheme !== colorName) {
             Krankomat.State.updateNested('config', 'colorTheme', colorName);
         }
+    },
+
+    updateFavicon: function(colorName) {
+        const palette = this.palettes[colorName] || this.palettes.indigo;
+        const color = palette[600];
+        // Path matches the logo in index.html
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='${color}'><path d='M19 14h-3v3h-2v-3h-3v-2h3V9h2v3h3m3-9H2c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h12.1c-.08-.33-.12-.66-.12-1c0-2.71 1.7-5.02 4-6.09V6l-8 5l-8-5h16v2.09c.72.2 1.39.57 2 .9V6c0-1.11-.89-2-2-2m-2 2L12 9L4 5h16Z'/></svg>`;
+        
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+        }
+        link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
     },
 
     toggle: function() {
