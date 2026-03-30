@@ -725,9 +725,19 @@ Krankomat.App = {
                         </div>`;
                  }
             } else {
-                let html = '<div class="space-y-3">';
-                // Sorting logic for time
+                // Group events by start time to handle parallel events
+                const groupedEvents = [];
                 daysEvents.sort((a,b) => (a.start || '').localeCompare(b.start || '')).forEach(evt => {
+                    const lastGroup = groupedEvents[groupedEvents.length - 1];
+                    // Group if start time is identical
+                    if (lastGroup && lastGroup[0].start === evt.start && evt.start !== undefined) {
+                        lastGroup.push(evt);
+                    } else {
+                        groupedEvents.push([evt]);
+                    }
+                });
+
+                const renderSingleEvent = (evt, isParallel) => {
                     // Extract time if present in start string (YYYYMMDDTHHMMSS)
                     let timeStr = '';
                     if (evt.start && evt.start.includes('T')) {
@@ -738,7 +748,6 @@ Krankomat.App = {
                     }
                     
                     // Style logic for Location - Bounding Box changes
-                    // Default
                     let containerClasses = "bg-indigo-50 dark:bg-slate-700/50 border-indigo-500";
                     let locIconClass = "text-slate-500 dark:text-slate-400";
                     let timeColorClass = "text-indigo-600 dark:text-indigo-400";
@@ -746,28 +755,28 @@ Krankomat.App = {
                     if (evt.location) {
                         const locLower = evt.location.toLowerCase();
                         if (locLower.includes('asynchron')) {
-                            // Grey
                             containerClasses = "bg-slate-100 dark:bg-slate-800 border-slate-400 dark:border-slate-500";
                             locIconClass = "text-slate-500 italic";
                             timeColorClass = "text-slate-600 dark:text-slate-400";
                         } else if (locLower.includes('synchron')) {
-                            // Green
                             containerClasses = "bg-green-50 dark:bg-green-900/20 border-green-500";
                             locIconClass = "text-green-600 dark:text-green-400";
                             timeColorClass = "text-green-700 dark:text-green-400";
                         }
                     }
+
+                    const widthClass = isParallel ? "flex-1 min-w-[140px]" : "w-full";
                     
-                    html += `
-                        <div class="${containerClasses} p-4 rounded-lg border-l-4 transition-colors">
-                            <h4 class="font-bold text-slate-800 dark:text-white break-words">${evt.summary}</h4>
-                            ${timeStr ? `<div class="flex items-center mt-2 text-sm ${timeColorClass}">
+                    return `
+                        <div class="${containerClasses} ${widthClass} p-4 rounded-lg border-l-4 transition-colors shadow-sm">
+                            <h4 class="font-bold text-slate-800 dark:text-white break-words text-sm sm:text-base">${evt.summary}</h4>
+                            ${timeStr ? `<div class="flex items-center mt-2 text-xs sm:text-sm ${timeColorClass}">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 ${timeStr} Uhr
                             </div>` : ''}
-                            ${evt.location ? `<div class="flex items-center mt-1 text-xs ${locIconClass}">
+                            ${evt.location ? `<div class="flex items-center mt-1 text-[10px] sm:text-xs ${locIconClass}">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -776,6 +785,19 @@ Krankomat.App = {
                             </div>` : ''}
                         </div>
                     `;
+                };
+
+                let html = '<div class="space-y-4">';
+                groupedEvents.forEach(group => {
+                    if (group.length > 1) {
+                        html += '<div class="flex gap-3 overflow-x-auto pb-2 snap-x">';
+                        group.forEach(evt => {
+                            html += renderSingleEvent(evt, true);
+                        });
+                        html += '</div>';
+                    } else {
+                        html += renderSingleEvent(group[0], false);
+                    }
                 });
                 html += '</div>';
                 content.innerHTML = html;
