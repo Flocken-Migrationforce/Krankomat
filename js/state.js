@@ -1,5 +1,3 @@
-
-
 window.Krankomat = window.Krankomat || {};
 
 Krankomat.State = {
@@ -25,16 +23,18 @@ Krankomat.State = {
         absenceReasons: { lecture: true, internship: false, exam: false, partialDay: false },
         calendarEvents: [], // Stores parsed ICS events
         emailDirectory: { // Maps Course Name to Email
-            "IT-Projektmanagement": "prof.it@example.com",
-            "Grundlagen der BWL": "prof.bwl@example.com"
+            "IT-Projektmanagement": "prof.it@example.com:D",
+            "Grundlagen der BWL": "prof.bwl@example.com:D"
         },
         config: {
             showAllRecipients: false,
             headerButtons: {
                 fileshare: true,
                 calendar: true,
-                mensa: true
+                mensa: true,
+                verify: true
             },
+            verifyLink: "", // Variable to determine which link the double check button opens
             supportEmail: "support@krankomat.cloud",
             profileName: "WebApp"
         }

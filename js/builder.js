@@ -147,13 +147,29 @@ Krankomat.Builder = {
                 
                 // If user manually enters email, save it to directory for future use
                 const recipient = currentRecipients.find(r => r.id.toString() === id);
-                if (recipient && recipient.module) {
+                if (recipient) {
+                    const moduleKey = recipient.originalModule || recipient.module;
                     const dir = Krankomat.State.get('emailDirectory') || {};
-                    dir[recipient.module] = e.target.value;
-                    Krankomat.State.set('emailDirectory', dir);
+                    
+                    // If this module has multiple recipients, we need to combine them
+                    const allForModule = newRecipients.filter(r => (r.originalModule || r.module) === moduleKey);
+                    if (allForModule.length > 1) {
+                        const emails = allForModule.map(r => {
+                            const g = r.gender ? `:${r.gender}` : ':D';
+                            return r.email.trim().length > 0 ? `${r.email.trim()}${g}` : '';
+                        }).filter(e => e.length > 0);
+                        dir[moduleKey] = emails.join(', ');
+                    } else {
+                        const g = recipient.gender ? `:${recipient.gender}` : ':D';
+                        dir[moduleKey] = e.target.value.trim().length > 0 ? `${e.target.value.trim()}${g}` : '';
+                    }
+                    Krankomat.State.data.emailDirectory = dir;
                 }
 
-                Krankomat.State.set('recipients', newRecipients);
+                // Update recipients without triggering full re-render
+                Krankomat.State.data.recipients = newRecipients;
+                Krankomat.State.save();
+                Krankomat.Preview.render();
              }
         });
     },
@@ -300,31 +316,111 @@ Krankomat.Builder = {
              modulesToList = todaysModules;
         }
 
-        const generatedRecipients = modulesToList.map((modName, index) => {
-            const knownEmail = emailDirectory[modName] || '';
-            let anrede = `Sehr geehrte/r Dozent/in für ${modName}`;
-            if (knownEmail) {
-                const extractedName = this.extractNameFromEmail(knownEmail);
-                if (extractedName) {
-                    anrede = `Sehr geehrte/r ${extractedName}`;
-                }
-            }
-            
-            // Auto-select logic
-            // If showAll=true: Select only if it matches today's modules.
-            // If showAll=false: Select true (since it IS today's module).
-            let shouldSelect = true;
-            if (showAll) {
-                shouldSelect = todaysModules.includes(modName);
-            }
+        const excludedRecipients = config.excludedRecipients || [];
+        let generatedRecipients = [];
 
-            return {
-                id: index + 2, // Offset ID after ZPD
-                anrede: anrede,
-                module: modName,
-                isSelected: shouldSelect,
-                email: knownEmail
-            };
+        modulesToList.forEach((modName, index) => {
+            if (excludedRecipients.includes(modName)) return;
+
+            const knownEmail = emailDirectory[modName] || '';
+            const emailsRaw = knownEmail.split(',').map(e => e.trim()).filter(e => e.length > 0);
+            
+            const parsedEmails = emailsRaw.map(raw => {
+                let email = raw;
+                let gender = 'D';
+                const colonIdx = raw.lastIndexOf(':');
+                if (colonIdx !== -1) {
+                    const potentialGender = raw.substring(colonIdx + 1).trim().toUpperCase();
+                    if (['M', 'W', 'D'].includes(potentialGender)) {
+                        email = raw.substring(0, colonIdx).trim();
+                        gender = potentialGender;
+                    }
+                }
+                return { email, gender };
+            });
+            
+            if (parsedEmails.length > 1) {
+                parsedEmails.forEach((parsed, subIndex) => {
+                    const { email, gender } = parsed;
+                    if (excludedRecipients.includes(email)) return;
+                    
+                    let anrede = `Sehr geehrte/r Dozent/in für ${modName}`;
+                    const extractedName = this.extractNameFromEmail(email);
+                    
+                    if (extractedName) {
+                        if (gender === 'W') {
+                            anrede = `Sehr geehrte ${extractedName}`;
+                        } else if (gender === 'M') {
+                            anrede = `Sehr geehrter ${extractedName}`;
+                        } else {
+                            anrede = `Sehr geehrte/r ${extractedName}`;
+                        }
+                    } else {
+                        if (gender === 'W') {
+                            anrede = `Sehr geehrte Dozentin für ${modName}`;
+                        } else if (gender === 'M') {
+                            anrede = `Sehr geehrter Dozent für ${modName}`;
+                        } else {
+                            anrede = `Sehr geehrte/r Dozent/in für ${modName}`;
+                        }
+                    }
+                    
+                    generatedRecipients.push({
+                        id: `${index + 2}-${subIndex}`,
+                        anrede: anrede,
+                        module: `${modName} (${extractedName || email})`,
+                        isSelected: false, // Uncheck by default if multiple so user has to choose
+                        email: email,
+                        gender: gender,
+                        originalModule: modName
+                    });
+                });
+            } else {
+                const parsed = parsedEmails.length === 1 ? parsedEmails[0] : { email: '', gender: 'D' };
+                const { email, gender } = parsed;
+                if (email && excludedRecipients.includes(email)) return;
+
+                let anrede = `Sehr geehrte/r Dozent/in für ${modName}`;
+                
+                if (email) {
+                    const extractedName = this.extractNameFromEmail(email);
+                    if (extractedName) {
+                        if (gender === 'W') {
+                            anrede = `Sehr geehrte ${extractedName}`;
+                        } else if (gender === 'M') {
+                            anrede = `Sehr geehrter ${extractedName}`;
+                        } else {
+                            anrede = `Sehr geehrte/r ${extractedName}`;
+                        }
+                    } else {
+                        if (gender === 'W') {
+                            anrede = `Sehr geehrte Dozentin für ${modName}`;
+                        } else if (gender === 'M') {
+                            anrede = `Sehr geehrter Dozent für ${modName}`;
+                        } else {
+                            anrede = `Sehr geehrte/r Dozent/in für ${modName}`;
+                        }
+                    }
+                }
+                
+                // Auto-select logic
+                // If showAll=true: Select only if it matches today's modules.
+                // If showAll=false: Select true (since it IS today's module).
+                let shouldSelect = true;
+                if (showAll) {
+                    shouldSelect = todaysModules.includes(modName);
+                }
+
+                generatedRecipients.push({
+                    id: index + 2, // Offset ID after ZPD
+                    anrede: anrede,
+                    module: modName,
+                    isSelected: shouldSelect,
+                    email: email,
+                    gender: gender,
+                    originalModule: modName
+                });
+            }
         });
         
         newRecipients = [...newRecipients, ...generatedRecipients];
