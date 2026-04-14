@@ -107,7 +107,7 @@ Mit freundlichen Grüßen
             abwesenheitsgrund: abwesenheitsgrund,
         };
 
-        const body = Krankomat.Utils.renderTemplate(bodyTemplate.trim(), context);
+        const body = Krankomat.Utils.renderTemplate(bodyTemplate.trim(), context).replace(/\n{3,}/g, '\n\n');
         const subject = Krankomat.Utils.renderTemplate(this.emailSubjectTemplate, context);
         const toList = selectedRecipients.map(r => r.email).filter(Boolean).filter(e => e.trim() !== '');
         const toValue = toList.join('; ');

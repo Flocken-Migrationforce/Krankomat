@@ -280,7 +280,11 @@ Krankomat.Builder = {
         if (calendarEvents.length > 0) {
              const dayEvents = calendarEvents.filter(evt => Krankomat.Utils.isEventOnDate(evt, dateStr));
              
-             dayEvents.forEach(e => {
+             dayEvents.sort((a, b) => {
+                 const timeA = (a.start || '').split('T')[1] || '';
+                 const timeB = (b.start || '').split('T')[1] || '';
+                 return timeA.localeCompare(timeB);
+             }).forEach(e => {
                  // Check if location is asynchronous -> skip recipient logic if so
                  if (e.location && e.location.toLowerCase().includes('asynchron')) {
                      return;
