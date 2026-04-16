@@ -7,6 +7,7 @@ import os
 import csv
 import sqlite3
 import pdb # zum Debuggen
+import sys
 
 # ----------------- Dateipfade / User-Config Dateien -----------------
 TEMPLATE_BODY_PATH = "template.txt"
@@ -394,15 +395,32 @@ class KrankmeldungApp(tk.Tk):
         self.entry_datum_2.grid(row=1, column=7, padx=10, sticky="w")
         self.entry_datum_2.bind("<KeyRelease>", lambda e: self._update_preview())
 
-        # ----------------- Icon laden  ----------------- START
-        diskette_img = tk.PhotoImage(file="icon_save_Windows.png") # tkinter kann nur Zoom mit ganzen Zahlen, unpraktisch. Lieber pillow (auch PIL genannt) benutzen.
+        # ----------------- Icon für .py laden  ----------------- START
+        # diskette_img = tk.PhotoImage(file="icon_save_Windows.png") # 2511301026FF für EXE-Kompilierung auskommentieren! für .py-Nutzung entkommentieren! # tkinter kann nur Zoom mit ganzen Zahlen, unpraktisch. Lieber pillow (auch PIL genannt) benutzen.
         # diskette_img = Image.open("icon_save_Windows.png")
 
         # # Genaues Skalieren auf 32x32 px
         # small_img = diskette_img.resize((32, 32), resample=Image.Resampling.LANCZOS)
 
         # photo_img = ImageTk.PhotoImage(small_img)
-        # ----------------- Icon laden  ----------------- ENDE
+        # ----------------- Icon für .py laden  ----------------- ENDE
+
+        # ----------------- Icon für .EXE laden  ----------------- START
+        def resource_path(relative_path):
+            try:
+                base_path = sys._MEIPASS
+            except Exception:
+                base_path = os.path.abspath(".")
+            return os.path.join(base_path, relative_path)
+
+        # Laden + Skalieren (beliebig, z.B. 16x16 passt gut)
+        icon_path = resource_path("icon_save_Windows.png")
+        pil_image = Image.open(icon_path).resize((16, 16))  # Flexible Größe!
+        diskette_img = ImageTk.PhotoImage(pil_image)
+        # ----------------- Icon für .EXE laden  ----------------- START
+
+
+
 
         btn_save = ttk.Button(self.top, text="Speichern", image=diskette_img,
                               compound="left",
@@ -508,6 +526,7 @@ class KrankmeldungApp(tk.Tk):
                 cb = ttk.Checkbutton(left, text=opt, variable=v, command=self._update_preview)
             cb.pack(anchor="w", pady=2)
             self.checkboxes_left_aktiv[opt] = v
+
 
     def _build_center_panel(self):
         center = ttk.LabelFrame(self, text="Krankmelden bei", padding=6)
