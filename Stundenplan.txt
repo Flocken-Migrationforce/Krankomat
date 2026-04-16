@@ -1,5 +1,5 @@
-Montag;Projektmanagement,Sozialwissenschaftliche Schlüsselkompetenzen,Grundlagen Informatik
-Dienstag;Grundlagen E-Government (E-Gov1),Allgemeines Verwaltungsrecht (AVR1),Grundlagen Informatik
-Mittwoch;
-Donnerstag;
-Freitag;
+Montag;Zivilrecht,VSG
+Dienstag;VWL2,Digitale Innovationen,A&D,Psychologie der Veränderungen
+Mittwoch;Konfliktmanagement,Prozessmanagement,AVR2
+Donnerstag;SE1,IT-Management,Prozessmanagement
+Freitag;Zivilrecht,A&D Übungen
