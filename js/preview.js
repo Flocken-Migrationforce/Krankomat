@@ -4,7 +4,7 @@ window.Krankomat = window.Krankomat || {};
 
 Krankomat.Preview = {
     // Subject changed: removed student ID, as per request
-    emailSubjectTemplate: "{art} E-Gov 2025 {Datum} [{Vornamen} {Nachname}]",
+    emailSubjectTemplate: "{art} {profilName} {Datum} [{Vornamen} {Nachname}]",
 
     init: function() {
         this.setupCopyButtons();
@@ -71,8 +71,7 @@ hiermit melde ich mich ab dem {Datum2} wieder gesund.
 Ich war vom {Datum} bis einschließlich {Datum2} krank.
 
 Name: {Vornamen} {Nachname}
-{optionalMatrikelnummer}Studiengang: {studiengang}
-
+{optionalMatrikelnummer}{optionalStudiengang}
 {bemerkung}
 
 Mit freundlichen Grüßen
@@ -84,22 +83,26 @@ hiermit melde ich mich für den {Datum} krank.
 {dauermeldung}
 
 Name: {Vornamen} {Nachname}
-{optionalMatrikelnummer}Studiengang: {studiengang}
-
+{optionalMatrikelnummer}{optionalStudiengang}
 {bemerkung}
 
 Mit freundlichen Grüßen
 {Vornamen} {Nachname}`;
+
+        const config = data.config || {};
+        const profileName = config.profileName || '(Studiengang)';
+        const studyProgramLine = `Studiengang: ${profileName}\n`;
 
         const context = {
             Vornamen: data.userData.firstName, 
             Nachname: data.userData.lastName, 
             // Matrikelnummer: data.userData.studentId, // Removed from context for standard usage
             optionalMatrikelnummer: matriculationLine,
+            optionalStudiengang: studyProgramLine,
             Datum: data.sicknessStartDate, 
             Datum2: data.sicknessEndDate, 
             art: noticeType, 
-            studiengang: data.userData.studyProgram || 'E-Government',
+            profilName: profileName,
             anrede: anredeText, 
             bemerkung: data.details.comments,
             prüfungstag: data.absenceReasons.exam ? 'ja' : 'nein',

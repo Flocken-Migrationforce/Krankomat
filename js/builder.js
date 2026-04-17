@@ -245,7 +245,7 @@ Krankomat.Builder = {
         const isExam = data.absenceReasons && data.absenceReasons.exam;
         const isGesund = !!data.sicknessEndDate;
 
-        const zpd = { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'ZPD (Zentrum für Personaldienste)', isSelected: true, email: '' };
+        const zpd = { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'ZPD (Zentrum für Personaldienste)', isSelected: true, email: config.zpdEmail || '' };
         
         // Preserve ZPD email if typed
         const currentRecipients = data.recipients || [];
@@ -267,7 +267,7 @@ Krankomat.Builder = {
                 anrede: 'Sehr geehrte Damen und Herren vom Prüfungsamt',
                 module: 'Prüfungsamt (FSB PuMa)',
                 isSelected: true,
-                email: 'pruefungsamt-berlinertor-sp2@haw-hamburg.de'
+                email: config.pruefungsamtEmail || ''
             };
             newRecipients.push(examOffice);
         }
@@ -321,6 +321,7 @@ Krankomat.Builder = {
         }
 
         const excludedRecipients = config.excludedRecipients || [];
+        const deselectedModules = config.deselectedModules || [];
         let generatedRecipients = [];
 
         modulesToList.forEach((modName, index) => {
@@ -413,6 +414,9 @@ Krankomat.Builder = {
                 let shouldSelect = true;
                 if (showAll) {
                     shouldSelect = todaysModules.includes(modName);
+                }
+                if (deselectedModules.includes(modName)) {
+                    shouldSelect = false;
                 }
 
                 generatedRecipients.push({

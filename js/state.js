@@ -3,11 +3,10 @@ window.Krankomat = window.Krankomat || {};
 Krankomat.State = {
     defaults: {
         userData: {
-            firstName: 'Max',
-            lastName: 'Mustermann',
+            firstName: '',
+            lastName: '',
             // StudentId is no longer part of the defaults visible on load
-            email: 'max.mustermann@example.com',
-            studyProgram: 'E-Government',
+            email: ''
         },
         recipientsStructure: [
             { id: 1, anrede: 'Sehr geehrte Damen und Herren vom ZPD', module: 'ZPD (Zentrum für Personaldienste)', isSelected: true },
@@ -22,21 +21,28 @@ Krankomat.State = {
         ],
         absenceReasons: { lecture: true, internship: false, exam: false, partialDay: false },
         calendarEvents: [], // Stores parsed ICS events
-        emailDirectory: { // Maps Course Name to Email
-            "IT-Projektmanagement": "prof.it@example.com:D",
-            "Grundlagen der BWL": "prof.bwl@example.com:D"
-        },
+        emailDirectory: {}, // Maps Course Name to Email
         config: {
             showAllRecipients: false,
+            showAllCalendarEvents: false,
             headerButtons: {
                 fileshare: true,
                 calendar: true,
                 mensa: true,
-                verify: true
+                verify: true,
+                hvv: true
             },
             verifyLink: "", // Variable to determine which link the double check button opens
-            supportEmail: "support@krankomat.cloud",
-            profileName: "WebApp"
+            supportEmail: "",
+            profileName: "",
+            zpdEmail: "",
+            pruefungsamtEmail: "",
+            sharepointUrl: "",
+            hvvUrl: "https://www.hvv.de/de/fahrplaene/abruf-fahrplaninfos/abfahrten-auf-ihrem-monitor/abfahrten-anzeige?show=a9d66eb086804760af209c71126ed4c5",
+            hideHvvUrlSetting: false,
+            colorTheme: "blue",
+            excludedRecipients: [],
+            studyProgram: ""
         }
     },
 

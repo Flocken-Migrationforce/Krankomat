@@ -21,6 +21,7 @@ Krankomat.App = {
         this.checkDisclaimer();
         this.checkConfigBanner();
         this.setupVerifyButton();
+        this.checkParallelCourses();
         console.log('Krankomat initialized successfully.');
     },
 
@@ -29,6 +30,122 @@ Krankomat.App = {
         Krankomat.Preview.render();
         this.renderHeaderVisibility();
         this.renderHeaderTitle();
+    },
+
+    checkParallelCourses: function(forceShow = false) {
+        const events = Krankomat.State.data.calendarEvents || [];
+        if (events.length === 0) return;
+        
+        const config = Krankomat.State.get('config') || {};
+        if (config.parallelResolved && !forceShow) return;
+        
+        const groups = {};
+        events.forEach(e => {
+            if (!e.start || !e.summary) return;
+            if (e.location && e.location.toLowerCase().includes('asynchron')) return;
+            
+            const dateObj = Krankomat.Utils.parseIcsDateStringToJsDate(e.start);
+            if (!dateObj) return;
+            
+            const dayOfWeek = dateObj.getDay();
+            const time = e.start.split('T')[1] || '';
+            
+            const key = `${dayOfWeek}-${time}`;
+            if (!groups[key]) groups[key] = new Set();
+            groups[key].add(e.summary);
+        });
+        
+        const parallelGroups = Object.values(groups)
+            .map(set => Array.from(set))
+            .filter(arr => arr.length > 1);
+            
+        const uniqueGroups = [];
+        const seen = new Set();
+        parallelGroups.forEach(group => {
+            group.sort();
+            const key = group.join('|');
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueGroups.push(group);
+            }
+        });
+        
+        if (uniqueGroups.length > 0) {
+            this.renderParallelModal(uniqueGroups);
+        } else {
+            if (!config.parallelResolved) {
+                Krankomat.State.updateNested('config', 'parallelResolved', true);
+            }
+        }
+    },
+
+    renderParallelModal: function(groups) {
+        let container = document.getElementById('parallel-modal-container');
+        if (!container) return;
+        
+        const config = Krankomat.State.get('config') || {};
+        const deselected = config.deselectedModules || [];
+        
+        let html = `
+          <div class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in" id="parallel-backdrop">
+             <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full border border-indigo-500/30 animate-scale-in" onclick="event.stopPropagation()">
+                <div class="p-5 border-b border-slate-200 dark:border-slate-700">
+                   <h2 class="text-lg font-bold text-slate-800 dark:text-white">Parallel stattfindende Kurse</h2>
+                   <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Wir haben Kurse gefunden, die gleichzeitig stattfinden. Bitte wählen Sie, welche Sie tatsächlich belegen. Die abgewählten Kurse werden bei der Krankmeldung standardmäßig deaktiviert.</p>
+                </div>
+                <div class="p-6 max-h-[60vh] overflow-y-auto space-y-6">
+        `;
+        
+        groups.forEach((group, i) => {
+            html += `<div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
+                        <h4 class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider">Kursgruppe ${i + 1}</h4>
+                        <div class="space-y-2 parallel-group">`;
+            group.forEach(mod => {
+                const isChecked = !deselected.includes(mod);
+                html += `
+                    <label class="flex items-start space-x-3 cursor-pointer group">
+                        <div class="flex-shrink-0 mt-0.5">
+                            <input type="checkbox" value="${mod}" class="parallel-checkbox rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-4 h-4" ${isChecked ? 'checked' : ''}>
+                        </div>
+                        <span class="text-sm text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">${mod}</span>
+                    </label>
+                `;
+            });
+            html += `</div></div>`;
+        });
+        
+        html += `
+                </div>
+                <div class="p-5 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                    <button id="save-parallel-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors">
+                        Speichern & Schließen
+                    </button>
+                </div>
+             </div>
+          </div>
+        `;
+        
+        container.innerHTML = html;
+        
+        document.getElementById('save-parallel-btn').onclick = () => {
+            const checkboxes = container.querySelectorAll('.parallel-checkbox');
+            const newDeselected = [...deselected];
+            
+            checkboxes.forEach(cb => {
+                const mod = cb.value;
+                if (!cb.checked) {
+                    if (!newDeselected.includes(mod)) newDeselected.push(mod);
+                } else {
+                    const idx = newDeselected.indexOf(mod);
+                    if (idx > -1) newDeselected.splice(idx, 1);
+                }
+            });
+            
+            Krankomat.State.updateNested('config', 'deselectedModules', newDeselected);
+            Krankomat.State.updateNested('config', 'parallelResolved', true);
+            Krankomat.Builder.recalculateRecipients();
+            container.innerHTML = '';
+        };
     },
 
     renderHeaderTitle: function() {
@@ -41,7 +158,7 @@ Krankomat.App = {
 
     renderHeaderVisibility: function() {
         const config = Krankomat.State.get('config') || {};
-        const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true, verify: true };
+        const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true, verify: true, hvv: true };
 
         const setVisibility = (id, isVisible) => {
             const el = document.getElementById(id);
@@ -55,6 +172,19 @@ Krankomat.App = {
         setVisibility('calendar-toggle-btn', buttons.calendar);
         setVisibility('mensa-toggle-btn', buttons.mensa);
         setVisibility('verify-btn', buttons.verify);
+        setVisibility('hvv-toggle-btn', buttons.hvv !== false); // Default to true if not specified
+        
+        const fileshareBtn = document.getElementById('fileshare-btn');
+        if (fileshareBtn) {
+            const link = config.sharepointUrl || "";
+            if (link.trim()) {
+                fileshareBtn.href = link;
+                fileshareBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                fileshareBtn.removeAttribute('href');
+                fileshareBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
         
         // Update styling if link is missing
         const verifyBtn = document.getElementById('verify-btn');
@@ -215,7 +345,7 @@ Krankomat.App = {
         const config = Krankomat.State.get('config') || {};
         const buttons = config.headerButtons || { fileshare: true, calendar: true, mensa: true, verify: true };
         const verifyLink = config.verifyLink || "";
-        const supportEmail = config.supportEmail || "support@krankomat.cloud";
+        const supportEmail = config.supportEmail || "";
         const showAll = config.showAllRecipients || false;
         const currentColor = config.colorTheme || 'indigo';
         
@@ -288,21 +418,16 @@ Krankomat.App = {
                     </label>
                   </div>
 
-                  <!-- Excluded Recipients Section -->
-                  <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-                     <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Ausgeschlossene Empfänger</h3>
-                     <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                        Geben Sie E-Mail-Adressen oder Modulnamen ein, die ignoriert werden sollen (eine pro Zeile).
-                     </p>
-                     <textarea id="setting-excluded-recipients" rows="3" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-sm focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white" placeholder="z.B. prof.test@haw-hamburg.de\nUnwichtiges Modul">${(config.excludedRecipients || []).join('\\n')}</textarea>
-                  </div>
-
                   <!-- UI Settings Section (Merged) -->
                   <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
                      <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3">Benutzeroberfläche</h3>
                      <label class="flex items-center space-x-2 mb-2">
                         <input type="checkbox" id="setting-show-all-recipients" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" ${showAll ? 'checked' : ''}>
                         <span class="text-sm text-slate-600 dark:text-slate-300">Alle bekannten Empfänger anzeigen (statt nur Tagesauswahl)</span>
+                     </label>
+                     <label class="flex items-center space-x-2 mb-2">
+                        <input type="checkbox" id="setting-show-all-calendar-events" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" ${config.showAllCalendarEvents ? 'checked' : ''}>
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Alle bekannten Termine anzeigen (auch demarkierte)</span>
                      </label>
 
                      <hr class="my-3 border-slate-200 dark:border-slate-600">
@@ -325,15 +450,12 @@ Krankomat.App = {
                             <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="mensa" ${buttons.mensa ? 'checked' : ''}>
                             <span class="text-sm text-slate-600 dark:text-slate-300">Mensa Menü</span>
                         </label>
-                    </div>
-
-                    <hr class="my-3 border-slate-200 dark:border-slate-600">
-                    <h4 class="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 uppercase tracking-wide">Button Verknüpfungen</h4>
-                    <div class="space-y-3">
-                         <div class="flex flex-col">
-                            <label class="text-xs text-slate-500 dark:text-slate-400 mb-1">Verifizierungs-Link (URL)</label>
-                            <input type="url" id="setting-verify-link" placeholder="https://..." value="${verifyLink}" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-sm focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                         </div>
+                        ${config.hideHvvUrlSetting ? '' : `
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" class="header-toggle rounded border-slate-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" data-target="hvv" ${buttons.hvv !== false ? 'checked' : ''}>
+                            <span class="text-sm text-slate-600 dark:text-slate-300">HVV Abfahrten</span>
+                        </label>
+                        `}
                     </div>
                   </div>
                   
@@ -377,6 +499,9 @@ Krankomat.App = {
                         <span class="mt-2 text-xs font-bold">.ics Datei auswählen</span>
                         <input type='file' id="settings-ics-upload" class="hidden" accept=".ics" />
                     </label>
+                    <button id="manage-parallel-btn" class="mt-3 w-full py-2 bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-200 rounded-md text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-500 transition-colors flex items-center justify-center">
+                        Parallelkurse verwalten
+                    </button>
                   </div>
                 </div>
              </div>
@@ -406,12 +531,13 @@ Krankomat.App = {
             };
         });
 
-        // Bind Verify Link Input
-        const verifyLinkInput = document.getElementById('setting-verify-link');
-        if (verifyLinkInput) {
-            verifyLinkInput.addEventListener('input', (e) => {
-                Krankomat.State.updateNested('config', 'verifyLink', e.target.value);
-            });
+        // Bind Manage Parallel Courses Button
+        const manageParallelBtn = document.getElementById('manage-parallel-btn');
+        if (manageParallelBtn) {
+            manageParallelBtn.onclick = () => {
+                container.innerHTML = ''; // Close settings modal
+                Krankomat.App.checkParallelCourses(true);
+            };
         }
 
         // Bind Show All Recipients Toggle
@@ -423,13 +549,12 @@ Krankomat.App = {
             });
         }
 
-        // Bind Excluded Recipients
-        const excludedInput = document.getElementById('setting-excluded-recipients');
-        if (excludedInput) {
-            excludedInput.addEventListener('change', (e) => {
-                const lines = e.target.value.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
-                Krankomat.State.updateNested('config', 'excludedRecipients', lines);
-                Krankomat.Builder.recalculateRecipients();
+        // Bind Show All Calendar Events Toggle
+        const showAllCalCheck = document.getElementById('setting-show-all-calendar-events');
+        if (showAllCalCheck) {
+            showAllCalCheck.addEventListener('change', (e) => {
+                Krankomat.State.updateNested('config', 'showAllCalendarEvents', e.target.checked);
+                // The calendar loads dynamically when opened, so state update is sufficient here
             });
         }
 
@@ -455,6 +580,8 @@ Krankomat.App = {
                     ...currentHeaderButtons,
                     [target]: isChecked 
                 });
+                // Update UI immediately
+                Krankomat.App.renderHeaderVisibility();
             });
         });
 
@@ -532,7 +659,7 @@ Krankomat.App = {
     renderMensaModal: function(container) {
         container.innerHTML = `
             <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300" id="mensa-backdrop">
-                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-scale-in" onclick="event.stopPropagation()">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl h-[600px] max-h-[90vh] flex flex-col animate-scale-in" onclick="event.stopPropagation()">
                     <header class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
                         <div class="flex items-center space-x-4">
                             <button id="mensa-prev" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
@@ -683,13 +810,13 @@ Krankomat.App = {
 
         container.innerHTML = `
             <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300" id="calendar-backdrop">
-                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col animate-scale-in" onclick="event.stopPropagation()">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col animate-scale-in h-[600px] max-h-[90vh]" onclick="event.stopPropagation()">
                     <header class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
                         <div class="flex items-center space-x-4">
                             <button id="calendar-prev" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                             </button>
-                            <div class="text-center">
+                            <div class="text-center w-48 sm:w-64">
                                 <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">Stundenplan</h2>
                                 <p class="text-xs text-indigo-600 dark:text-indigo-400 mb-0.5">${countText}</p>
                                 <p id="calendar-date-display" class="text-sm text-slate-500 dark:text-slate-400 font-medium"></p>
@@ -702,7 +829,7 @@ Krankomat.App = {
                              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </header>
-                    <main id="calendar-content" class="p-4 sm:p-6 overflow-y-auto max-h-[60vh]">
+                    <main id="calendar-content" class="p-4 sm:p-6 overflow-y-auto flex-grow">
                         <!-- Calendar events injected here -->
                     </main>
                 </div>
@@ -716,7 +843,7 @@ Krankomat.App = {
             const dateDisplay = document.getElementById('calendar-date-display');
             const content = document.getElementById('calendar-content');
             
-            dateDisplay.innerText = currentDate.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            dateDisplay.innerText = currentDate.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
             
             // Format current date to string for filtering
             const day = String(currentDate.getDate()).padStart(2, '0');
@@ -724,8 +851,19 @@ Krankomat.App = {
             const year = currentDate.getFullYear();
             const dateStr = `${day}.${month}.${year}`;
 
-            // Smart filter that handles RRULEs on the fly
-            const daysEvents = events.filter(evt => Krankomat.Utils.isEventOnDate(evt, dateStr));
+            // Fetch configuration for filtering
+            const config = Krankomat.State.data.config || {};
+            const showAll = config.showAllCalendarEvents === true;
+            const deselected = config.deselectedModules || [];
+
+            // Smart filter that handles RRULEs on the fly and deselected modules
+            const daysEvents = events.filter(evt => {
+                if (!Krankomat.Utils.isEventOnDate(evt, dateStr)) return false;
+                if (!showAll && evt.summary && deselected.includes(evt.summary)) {
+                    return false;
+                }
+                return true;
+            });
 
             if (daysEvents.length === 0) {
                  if (events.length === 0) {
@@ -847,4 +985,7 @@ Krankomat.App = {
 // Start the app
 document.addEventListener('DOMContentLoaded', () => {
     Krankomat.App.init();
+    if (window.KrankomatHVV) {
+        KrankomatHVV.init();
+    }
 });
