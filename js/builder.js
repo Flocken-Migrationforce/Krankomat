@@ -493,10 +493,18 @@ Krankomat.Builder = {
             { id: 'lecture', label: 'Vorlesungszeit' },
             { id: 'internship', label: 'Berufspraxis' },
             { id: 'exam', label: 'Prüfungsleistung / Klausur', warning: true },
-            { id: 'partialDay', label: 'Rest des Tages (war schon da)' }
+            { id: 'partialDay', label: 'Rest des Tages (war schon da)' },
+            { id: 'attest_separator', label: '<hr class="my-3 border-slate-200 dark:border-slate-700 w-full" />', isSeparator: true },
+            { id: 'attest', label: 'Attest vorhanden' },
+            { id: 'eau', label: 'Attest über eAU' },
+            { id: 'unfall', label: 'Unfall (auch privat)' }
         ];
 
-        const html = definitions.map(def => `
+        const html = definitions.map(def => {
+            if (def.isSeparator) {
+                return def.label;
+            }
+            return `
             <div>
                 <label class="flex items-center space-x-3 cursor-pointer group">
                     <div class="relative flex items-center">
@@ -526,7 +534,8 @@ Krankomat.Builder = {
                     </div>
                 </div>` : ''}
             </div>
-        `).join('');
+            `;
+        }).join('');
         
         // DOM update
         const currentHTML = container.innerHTML;

@@ -63,51 +63,53 @@ Krankomat.Preview = {
             }
         }
 
-        // Templates updated to remove generic Matrikelnummer, adding it dynamically via {optionalMatrikelnummer}
-        const bodyTemplate = noticeType === 'Gesundmeldung' ? 
-`{anrede}
+        // Templates updated to match user request exactly
+        const bodyTemplate = `{anrede}
 
-hiermit melde ich mich ab dem {Datum2} wieder gesund.
-Ich war vom {Datum} bis einschließlich {Datum2} krank.
+hiermit melde ich mich{wiederGesundAb} {DateText}.
 
-Name: {Vornamen} {Nachname}
-{optionalMatrikelnummer}{optionalStudiengang}
-{bemerkung}
-
-Mit freundlichen Grüßen
-{Vornamen} {Nachname}` : 
-`{anrede}
-
-hiermit melde ich mich für den {Datum} krank.
-{abwesenheitsgrund}
-{dauermeldung}
-
-Name: {Vornamen} {Nachname}
-{optionalMatrikelnummer}{optionalStudiengang}
-{bemerkung}
+Studiengruppe / Jahrgang: {profilName}
+Name: {Nachname}
+Vorname: {Vornamen}
+{optionalMatrikelnummer}Krankmeldung: {krankX}
+Gesundmeldung: {gesundX}
+Erster Krankheitstag: {Datum}
+Letzter Krankheitstag: {Datum2}
+Attest vorhanden ja/nein: {attest}
+Attest über eAU: {eau}
+(freiwillig gesetzlich Versicherte RSA/RIA, AzVA, Soz. Arbeit, E-Government)
+Prüfungstag/ Klausur/ Leistungsnachweis ja/nein: {prüfungstag}
+Unfall (auch privat) ja/nein: {unfall}
+Bemerkung / voraussichtliche Dauer: {bemerkung}
 
 Mit freundlichen Grüßen
+
 {Vornamen} {Nachname}`;
 
         const config = data.config || {};
-        const profileName = config.profileName || '(Studiengang)';
-        const studyProgramLine = `Studiengang: ${profileName}\n`;
+        const profileName = config.profileName || '';
+
+        const bemerkungRaw = data.details.comments ? data.details.comments.trim() : '';
 
         const context = {
-            Vornamen: data.userData.firstName, 
-            Nachname: data.userData.lastName, 
-            // Matrikelnummer: data.userData.studentId, // Removed from context for standard usage
-            optionalMatrikelnummer: matriculationLine,
-            optionalStudiengang: studyProgramLine,
-            Datum: data.sicknessStartDate, 
-            Datum2: data.sicknessEndDate, 
-            art: noticeType, 
+            Vornamen: data.userData.firstName || '', 
+            Nachname: data.userData.lastName || '', 
             profilName: profileName,
-            anrede: anredeText, 
-            bemerkung: data.details.comments,
-            prüfungstag: data.absenceReasons.exam ? 'ja' : 'nein',
-            dauermeldung: data.sicknessEndDate ? `Ich bin voraussichtlich bis einschließlich ${data.sicknessEndDate} krank.` : '',
-            abwesenheitsgrund: abwesenheitsgrund,
+            optionalMatrikelnummer: matriculationLine,
+            krankX: noticeType === 'Krankmeldung' ? 'x' : '',
+            gesundX: noticeType === 'Gesundmeldung' ? 'x' : '',
+            Datum: data.sicknessStartDate,
+            Datum2: data.sicknessEndDate || '',
+            attest: (data.absenceReasons && data.absenceReasons.attest) ? 'ja' : 'nein',
+            eau: (data.absenceReasons && data.absenceReasons.eau) ? 'ja' : 'nein',
+            prüfungstag: (data.absenceReasons && data.absenceReasons.exam) ? 'ja' : 'nein',
+            unfall: (data.absenceReasons && data.absenceReasons.unfall) ? 'ja' : 'nein',
+            bemerkung: bemerkungRaw,
+            // Construct sentence parts for the intro line
+            wiederGesundAb: noticeType === 'Gesundmeldung' ? ' wieder gesund ab' : ' krank für heute, den',
+            DateText: noticeType === 'Gesundmeldung' ? (data.sicknessEndDate || '') : Krankomat.Utils.todayFormatted(),
+            art: noticeType,
+            anrede: anredeText
         };
 
         const body = Krankomat.Utils.renderTemplate(bodyTemplate.trim(), context).replace(/\n{3,}/g, '\n\n');

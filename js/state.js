@@ -19,7 +19,7 @@ Krankomat.State = {
             { day: 'Donnerstag', module: 'Software Engineering' },
             { day: 'Freitag', module: 'IT-Projektmanagement' },
         ],
-        absenceReasons: { lecture: true, internship: false, exam: false, partialDay: false },
+        absenceReasons: { lecture: true, internship: false, exam: false, partialDay: false, attest: false, eau: false, unfall: false },
         calendarEvents: [], // Stores parsed ICS events
         emailDirectory: {}, // Maps Course Name to Email
         config: {
