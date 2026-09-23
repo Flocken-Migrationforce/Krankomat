@@ -1,13 +1,44 @@
-import tkinter as tk # für GUI
-from tkinter import ttk, messagebox, scrolledtext, filedialog # für GUI bestimmte Funktionen
+# import tkinter as tk # für GUI
+from tkinter import Toplevel, Label, Tk, BooleanVar, StringVar, END, Frame, Text, Canvas, WORD
+from tkinter import ttk # for the solo-unimportable ttk.Label, ttk.Radiobutton and the solo-importable ttk.Frame, ttk.Entry, ttk.Button, ttk.separator, ttk.LabelFrame, ttk.Checkbutton, ttk.Canvas, ttk.Scrollbar
+from tkinter import messagebox, scrolledtext, filedialog # für GUI bestimmte Funktionen
 from PIL import Image, ImageTk # für Bilder und Icons
-import datetime
-import win32com.client as win32
-import os
-import csv
-import sqlite3
-import pdb # zum Debuggen
+import datetime # full lib import since datetime.datetime has some issues with attributes strptime etc. to find them with ModuleType settings or without when doing a selective import of from datetime import datetime when datetime.datetime.strptime() is the goal format to use in this script.
+# from datetime import datetime  # for the solo-unimportable datetime.today and the solo-importable datetime.now, datetime.strptime, datetime.strftime
+from win32com.client import Dispatch
+from os import path
+from csv import DictReader
+from sqlite3 import connect
+# import pdb # zum Debuggen
 import sys
+from types import ModuleType # um Aliase nutzen zu können für sparsame Imports der benötigten Funktionen.
+
+tk = ModuleType("tkinter")
+tk.Toplevel = Toplevel
+tk.Label = Label
+tk.Tk = Tk
+tk.BooleanVar = BooleanVar
+tk.StringVar = StringVar
+tk.END = END
+tk.Frame = Frame
+tk.Text = Text
+tk.Canvas = Canvas
+tk.WORD = WORD
+win32 = ModuleType("win32")
+win32.Dispatch = Dispatch
+os = ModuleType("os")
+os.path = path
+csv = ModuleType("csv")
+csv.DictReader = DictReader
+sqlite3 = ModuleType("sqlite3")
+sqlite3.connect = connect
+# datetime = ModuleType("datetime")
+# datetime.datetime = datetime
+# datetime.datetime.strptime = datetime.strptime
+# datetime.datetime.strftime = datetime.strftime
+# datetime.datetime.today = datetime.today
+
+
 
 # ----------------- Lokal gespeicherte Nutzer-Daten -----------------
 TEMPLATE_BODY_PATH = "template.txt"
