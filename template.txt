@@ -1,6 +1,6 @@
 {anrede},
 
-hiermit melde ich mich krank für heute, den {Datum}.
+hiermit melde ich mich {Meldungstyp} für heute, den {Datum}.
 
 Studiengruppe / Jahrgang: EGov25
 Name: {Nachname}

@@ -983,7 +983,8 @@ class KrankmeldungApp(tk.Tk):
             "bemerkung_1": "x" if self.bemerkung_1_var.get() else "",
             "bemerkung_2": "x" if self.bemerkung_2_var.get() else "",
             "bemerkung_3": "x" if self.bemerkung_3_var.get() else "",
-            "Datum2": self.entry_datum_2.get().strip()
+            "Datum2": self.entry_datum_2.get().strip(),
+            "Meldungstyp": self.meldung_var.get().lower().replace("meldung","")
         }
         self._name_field = name_str
         return ctx
@@ -1067,9 +1068,12 @@ class KrankmeldungApp(tk.Tk):
             "Datum": ctx.get("Datum"),
             "Vornamen": ctx.get("Vornamen"),
             "Nachname": ctx.get("Nachname"),
-            "Matrikelnummer": ctx.get("Matrikelnummer","")
+            "Matrikelnummer": ctx.get("Matrikelnummer",""),
+            "Meldungstyp": self.meldung_var.get().lower().replace("meldung","")
         })
 
+        if self.meldung_var.get().strip() == "Gesundmeldung":
+            subject_filled.replace("krank", "gesund")
         # E-Mail-Adressen-Feld und Betreff-Feld aktualisieren
         combined_emails = "; ".join(to_list + cc_list)
 
