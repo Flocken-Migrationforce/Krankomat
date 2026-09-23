@@ -1,5 +1,0 @@
-Montag;Zivilrecht,VSG
-Dienstag;VWL2,Digitale Innovationen,A&D,Psychologie der Veränderungen
-Mittwoch;Konfliktmanagement,Prozessmanagement,AVR2
-Donnerstag;SE1,IT-Management,Prozessmanagement
-Freitag;Zivilrecht,A&D Übungen
