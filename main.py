@@ -43,14 +43,15 @@ sqlite3.connect = connect
 # ----------------- Lokal gespeicherte Nutzer-Daten -----------------
 TEMPLATE_BODY_PATH = "template.txt"
 TEMPLATE_SUBJECT_PATH = "template-subject.txt"
-EMPFAENGER_PATH = "Empfaenger.txt" # WICHTIG: Muss von Nutzer aus Datenschutzgründen manuell in den Ordner gelegt werden.
-USER_VORNAME_PATH = "Mein_Vorname.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
-USER_NACHNAME_PATH = "Mein_Nachname.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
-USER_EMAIL_PATH = "Meine_E-Mail-Adresse.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
-USER_MATRIKEL_PATH = "Meine_Matrikelnummer.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+USER_VORNAME_PATH = "Mein_Vorname.txt" # 2609231323 Standardwert vom Nutzer einstellbar.
+USER_NACHNAME_PATH = "Mein_Nachname.txt" # 2609231323 Standardwert vom Nutzer einstellbar.
+USER_EMAIL_PATH = "Meine_E-Mail-Adresse.txt" # 2609231323 Standardwert vom Nutzer einstellbar.
+USER_MATRIKEL_PATH = "Meine_Matrikelnummer.txt" # 2609231323 Standardwert vom Nutzer einstellbar.
 USER_STUDIENGANG_PATH = "Mein_Studiengang.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+USER_BEMERKUNGEN = "Bemerkungen.txt" # 2609231323 Standardwert vom Nutzer einstellbar.
 USER_STUNDENPLAN_PATH = "Stundenplan.txt" # 2609231324 Ausbaufähige Funktion, Funktion noch future.
 USER_LETZTE_KRANKMELDUNG = "krankmeldung.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+EMPFAENGER_PATH = "Empfaenger.txt" # WICHTIG: Muss von Nutzer aus Datenschutzgründen manuell in den Ordner gelegt werden.
 
 # ----------------- Lokal gespeicherte Nutzer-Daten laden, wenn vorhanden -----------------
 
@@ -84,6 +85,12 @@ try:
         preset_studiengang = f.read()
         if not preset_studiengang:
             del preset_studiengang
+
+
+    with open(USER_BEMERKUNGEN, "r", encoding="utf-8") as f:
+        preset_bemerkungen = f.read()
+        if not preset_bemerkungen:
+            del preset_bemerkungen
 
 except:
     pass
@@ -377,6 +384,7 @@ class KrankmeldungApp(tk.Tk):
         datum_krank_ende = self.entry_datum_2.get().strip()
         matrikelnummer = self.matrikel_var.get().strip()
         meldungstyp = self.meldung_var.get().strip() or "Krankmeldung"
+        bemerkungen = self.bemerkung_entry.get().strip()
 
         # SQLite speichern
         conn = sqlite3.connect("daten.db")
@@ -391,6 +399,7 @@ class KrankmeldungApp(tk.Tk):
                 datum_krank_start TEXT,
                 datum_krank_ende TEXT,
                 meldungstyp TEXT,
+                bemerkungen TEXT,
                 empfaenger TEXT
             )
         """)
@@ -401,8 +410,8 @@ class KrankmeldungApp(tk.Tk):
             if var.get()
         )
 
-        cursor.execute("INSERT INTO krankmeldungen (email, vorname, nachname, matrikelnummer, datum_krank_start, datum_krank_ende, meldungstyp, empfaenger) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                       (email, vorname, nachname, matrikelnummer, datum_krank_start, datum_krank_ende, meldungstyp, empfaenger))
+        cursor.execute("INSERT INTO krankmeldungen (email, vorname, nachname, matrikelnummer, datum_krank_start, datum_krank_ende, meldungstyp, bemerkungen, empfaenger) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                       (email, vorname, nachname, matrikelnummer, datum_krank_start, datum_krank_ende, meldungstyp, bemerkungen, empfaenger))
         conn.commit()
         conn.close()
 
@@ -425,11 +434,11 @@ class KrankmeldungApp(tk.Tk):
             conn = sqlite3.connect("daten.db")
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT email, vorname, nachname, datum_krank_start, datum_krank_ende, matrikelnummer, meldungstyp, empfaenger FROM krankmeldungen ORDER BY id DESC LIMIT 1")
+                "SELECT email, vorname, nachname, datum_krank_start, datum_krank_ende, matrikelnummer, meldungstyp, bemerkungen, empfaenger FROM krankmeldungen ORDER BY id DESC LIMIT 1")
             row = cursor.fetchone()
             conn.close()
             if row:
-                email, vorname, nachname, datum_krank_start, datum_krank_ende, matrikelnummer, meldungstyp_str, empfaenger_str = row
+                email, vorname, nachname, datum_krank_start, datum_krank_ende, matrikelnummer, meldungstyp_str, bemerkungen_str, empfaenger_str = row
                 self.entry_sender_email.delete(0, tk.END)  # 2609231049FF DOESNT WORK, raises error.
                 self.entry_sender_email.insert(0, email)   # 2609231049FF DOESNT WORK, raises error.
                 self.entry_vorname.delete(0, tk.END)
@@ -443,9 +452,12 @@ class KrankmeldungApp(tk.Tk):
                     self.entry_datum.insert(0, datum_krank_start)
                     self.entry_datum_2.delete(0, tk.END)
                     self.entry_datum_2.insert(0, heute)
+                    self.bemerkung_entry.delete("1.0", tk.END) # "1.0" hier notwendig bei tkinter für Zeile 1 Zeichen 0.
                     self.meldung_var.set("Gesundmeldung")
                 elif meldungstyp_str == "Gesundmeldung":
                     self.entry_datum.insert(0, heute)
+                    self.bemerkung_entry.delete("1.0", tk.END) # "1.0" hier notwendig bei tkinter für Zeile 1 Zeichen 0.
+                    self.bemerkung_entry.insert("1.0", bemerkungen_str) # "1.0" hier notwendig bei tkinter für Zeile 1 Zeichen 0.
                     self.meldung_var.set("Krankmeldung")
                 # self.entry_datum.insert(0, datum_krank_start)
                 # self.entry_datum_2.insert(0, datum_krank_ende)
@@ -481,7 +493,7 @@ class KrankmeldungApp(tk.Tk):
             print("Fehler beim Laden aus DB:", e)
 
     def export_output(self):
-        text = self.output_text.get("1.0", "end-1c")
+        text = self.output_text.get("1.0", "end-1c")  # "1.0" hier notwendig bei tkinter für Zeile 1 Zeichen 0.
         file_path = filedialog.asksaveasfilename(defaultextension=".txt",
                                                  filetypes=[("Textdateien", "*.txt"), ("Alle Dateien", "*.*")])
         if file_path:
@@ -863,6 +875,11 @@ class KrankmeldungApp(tk.Tk):
         self.bemerkung_entry.pack(anchor="w", pady=2)
         self.bemerkung_entry.bind("<KeyRelease>", lambda e: self._update_preview())
 
+        # Standardwert für "Bemerkung / voraussichtliche Dauer" setzen aus der TXT-Datei:
+        if preset_bemerkungen:
+            self.bemerkung_entry.delete("1.0", tk.END)  # "1.0" hier notwendig bei tkinter für Zeile 1 Zeichen 0.
+            self.bemerkung_entry.insert("1.0", preset_bemerkungen)  # "1.0" hier notwendig bei tkinter für Zeile 1 Zeichen 0.
+
         # Variablen für Checkboxen mit Beispieltexten
         self.bemerkung_1_var = tk.BooleanVar()
         self.bemerkung_2_var = tk.BooleanVar()
@@ -870,7 +887,7 @@ class KrankmeldungApp(tk.Tk):
 
         def toggle_bemerkung(var, text):
             if var.get():
-                aktuell = self.bemerkung_entry.get("1.0", "end-1c").strip()
+                aktuell = self.bemerkung_entry.get("1.0", "end-1c").strip()  # "1.0" hier notwendig bei tkinter für Zeile 1 Zeichen 0.
                 if text not in aktuell:
                     neu = aktuell + ("\n" if aktuell else "") + text
                     self.bemerkung_entry.delete("1.0", tk.END)

@@ -5,3 +5,6 @@
 Krankomat.db/
 db.py/
 db.py
+*.spec
+template_-0.txt
+krankmeldung.txt
