@@ -12,14 +12,53 @@ import sys
 # ----------------- Lokal gespeicherte Nutzer-Daten -----------------
 TEMPLATE_BODY_PATH = "template.txt"
 TEMPLATE_SUBJECT_PATH = "template-subject.txt"
-EMPFAENGER_PATH = "Empfaenger.txt"
-USER_VORNAME_PATH = "Mein_Vorname.txt"
-USER_NACHNAME_PATH = "Mein_Nachname.txt"
-USER_EMAIL_PATH = "Meine_E-Mail-Adresse.txt"
-USER_MATRIKEL_PATH = "Meine_Matrikelnummer.txt"
-USER_STUDIENGANG_PATH = "Mein_Studiengang.txt"
-USER_STUNDENPLAN_PATH = "Stundenplan.txt"
-USER_LETZTE_KRANKMELDUNG = "Letztaktuelle_Krankmeldung.txt"
+EMPFAENGER_PATH = "Empfaenger.txt" # WICHTIG: Muss von Nutzer aus Datenschutzgründen manuell in den Ordner gelegt werden.
+USER_VORNAME_PATH = "Mein_Vorname.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+USER_NACHNAME_PATH = "Mein_Nachname.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+USER_EMAIL_PATH = "Meine_E-Mail-Adresse.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+USER_MATRIKEL_PATH = "Meine_Matrikelnummer.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+USER_STUDIENGANG_PATH = "Mein_Studiengang.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+USER_STUNDENPLAN_PATH = "Stundenplan.txt" # 2609231324 Ausbaufähige Funktion, Funktion noch future.
+USER_LETZTE_KRANKMELDUNG = "krankmeldung.txt" # 2609231323 aktuell nicht in Gebrauch und nicht benötigt.
+
+# ----------------- Lokal gespeicherte Nutzer-Daten laden, wenn vorhanden -----------------
+
+# Lieber einzeln auslesen, damit man ggf. schneller auskommentieren kann.
+try:
+    with open(USER_VORNAME_PATH, "r", encoding="utf-8") as f:
+        preset_vorname = f.read()
+        if not preset_vorname:
+            del preset_vorname
+
+
+    with open(USER_NACHNAME_PATH, "r", encoding="utf-8") as f:
+        preset_nachname = f.read()
+        if not preset_nachname:
+            del preset_nachname
+
+
+    with open(USER_EMAIL_PATH, "r", encoding="utf-8") as f:
+        preset_email = f.read()
+        if not preset_email:
+            del preset_email
+
+
+    with open(USER_MATRIKEL_PATH, "r", encoding="utf-8") as f:
+        preset_matrikelnummer = f.read()
+        if not preset_matrikelnummer:
+            del preset_matrikelnummer
+
+
+    with open(USER_STUDIENGANG_PATH, "r", encoding="utf-8") as f:
+        preset_studiengang = f.read()
+        if not preset_studiengang:
+            del preset_studiengang
+
+except:
+    pass
+
+# # ----------------- Lokal gespeicherte Nutzer-Daten laden, wenn vorhanden -----------------
+
 
 def wochentag_bestimmen():
     # ----------------- Stundenplan.txt nutzt Empfaenger.txt zur automatischen Empfängerlisten-Erstellung für heutigen Wochentag -----------------
@@ -382,6 +421,22 @@ class KrankmeldungApp(tk.Tk):
                 # self.entry_datum_2.delete(0, tk.END)
                 self.matrikel_var.set(matrikelnummer)
 
+                # Einschub: wenn Standard-Werte in TXT-Files gesetzt sind, diese prioritär überschreibend nutzen:
+                if preset_vorname:
+                    self.entry_vorname.delete(0, tk.END)
+                    self.entry_vorname.insert(0, preset_vorname)
+                if preset_nachname:
+                    self.entry_nachname.delete(0, tk.END)
+                    self.entry_nachname.insert(0, preset_nachname)
+                if preset_email:
+                    self.entry_email.delete(0, tk.END)
+                    self.entry_email.insert(0, preset_email)
+                if preset_matrikelnummer:
+                    self.entry_matrikelnummer.delete(0, tk.END)
+                    self.entry_matrikelnummer.insert(0, preset_matrikelnummer)
+                # if preset_studiengang: # 2609231818 FUTURE
+                #     self.entry_studiengang.delete(0, tk.END)
+                #     self.entry_studiengang.insert(0, preset_studiengang)
 
                 # Alle Empfänger-Dropboxen aus = False
                 for var in self.empfaenger_ausgewählte.values():
