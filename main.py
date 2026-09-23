@@ -9,7 +9,7 @@ import sqlite3
 import pdb # zum Debuggen
 import sys
 
-# ----------------- Dateipfade / User-Config Dateien -----------------
+# ----------------- Lokal gespeicherte Nutzer-Daten -----------------
 TEMPLATE_BODY_PATH = "template.txt"
 TEMPLATE_SUBJECT_PATH = "template-subject.txt"
 EMPFAENGER_PATH = "Empfaenger.txt"
@@ -19,6 +19,7 @@ USER_EMAIL_PATH = "Meine_E-Mail-Adresse.txt"
 USER_MATRIKEL_PATH = "Meine_Matrikelnummer.txt"
 USER_STUDIENGANG_PATH = "Mein_Studiengang.txt"
 USER_STUNDENPLAN_PATH = "Stundenplan.txt"
+USER_LETZTE_KRANKMELDUNG = "Letztaktuelle_Krankmeldung.txt"
 
 def wochentag_bestimmen():
     # ----------------- Stundenplan.txt nutzt Empfaenger.txt zur automatischen Empfängerlisten-Erstellung für heutigen Wochentag -----------------
@@ -36,7 +37,7 @@ def wochentag_bestimmen():
     return heute_de
 
 def kurse_wochentag():
-    # 2. Stundenplan laden und Kurse des heutigen Tages finden
+    # Stundenplan laden und Kurse des heutigen Tages finden
     stundenplan_kurse = []
     heute_de = wochentag_bestimmen()
     with open("Stundenplan.txt", "r", encoding="utf-8") as f:
@@ -47,17 +48,21 @@ def kurse_wochentag():
                 return stundenplan_kurse
 
 def empfaenger_laden():
-    # 3. Empfänger laden
+    # Daten der Empfänger der Krankmeldung laden
     empfaenger_liste = []
     with open("Empfaenger.txt", "r", encoding="utf-8") as f:
         for line in f:
             name, kurs, email = line.strip().split(";")
             empfaenger_liste.append({"name": name, "kurs": kurs, "email": email})
     return empfaenger_liste
+
 def empfaenger_aktivieren_mittels_stundenplan():
     # 4. Checkboxen aktivieren je nach Kursmatch
     # Beispiel: checkbox_dict ist ein Dictionary der Checkboxen mit Schlüssel als Empfängername oder Email
     empfaenger_liste = empfaenger_laden()
+    if not stundenplan_kurse:
+        print("Kein Stundenplan gefunden mit Kursen. Es werden keine Checkboxen de-/aktiviert.")
+        return
     for empfaenger in empfaenger_liste:
         if empfaenger["kurs"] in stundenplan_kurse:
             # checkbox_dict[empfaenger_key].select()  # Checkbox aktivieren
@@ -66,15 +71,15 @@ def empfaenger_aktivieren_mittels_stundenplan():
             # checkbox_dict[empfaenger_key].deselect()  # Checkbox deaktivieren
             print(f"Checkbox deaktivieren für {empfaenger['name']} mit Kurs {empfaenger['kurs']}")
 
-def load_file_text(path, default=None):
+def aus_txt_laden(path, default=None):
     if not os.path.exists(path):
         return default
     with open(path, "r", encoding="utf-8") as f:
         return f.read().strip()
 
 
-def load_email_from_berufspraxis_txt():
-    text = load_file_text("Berufspraxis_text.txt", default="")
+def emailadressen_laden_aus_berufspraxis_txt():
+    text = aus_txt_laden("Berufspraxis_text.txt", default="")
     for line in text.splitlines():
         if line.strip() and ";" in line:
             parts = line.split(";")
@@ -134,7 +139,7 @@ def generate_anreden(anrede_list):
 
 
 def aktiviere_empfaenger_checkboxen(self, heute_tag):
-    stundenplan_inhalt = load_file_text("Stundenplan.txt", default="")
+    stundenplan_inhalt = aus_txt_laden("Stundenplan.txt", default="")
     stundenplan_kurse = []
     for line in stundenplan_inhalt.splitlines():
         if not line.strip():
@@ -144,7 +149,7 @@ def aktiviere_empfaenger_checkboxen(self, heute_tag):
             stundenplan_kurse = [k.strip() for k in kurse_str.split(",") if k.strip()]
             break
 
-    empfaenger_inhalt = load_file_text("Empfaenger.txt", default="")
+    empfaenger_inhalt = aus_txt_laden("Empfaenger.txt", default="")
     for line in empfaenger_inhalt.splitlines():
         if not line.strip():
             continue
@@ -226,14 +231,15 @@ class KrankmeldungApp(tk.Tk):
         self.geometry("1150x800") # initiale Fenstergröße beim Öffnen
 
         # User Config laden
-        self.user_vorname = load_file_text(USER_VORNAME_PATH, default="")
-        self.user_nachname = load_file_text(USER_NACHNAME_PATH, default="")
-        self.user_matrikel = load_file_text(USER_MATRIKEL_PATH, default="")
-        self.user_email = load_file_text(USER_EMAIL_PATH, default="")
-        self.user_studiengang = load_file_text(USER_STUDIENGANG_PATH, default="")
+        self.user_vorname = aus_txt_laden(USER_VORNAME_PATH, default="")
+        self.user_nachname = aus_txt_laden(USER_NACHNAME_PATH, default="")
+        self.user_matrikel = aus_txt_laden(USER_MATRIKEL_PATH, default="")
+        self.user_email = aus_txt_laden(USER_EMAIL_PATH, default="")
+        self.user_studiengang = aus_txt_laden(USER_STUDIENGANG_PATH, default="")
 
-        self.template_body = load_file_text(TEMPLATE_BODY_PATH, default="")
-        self.template_subject = load_file_text(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]")
+        self.template_body = aus_txt_laden(TEMPLATE_BODY_PATH, default="")
+        self.template_subject = aus_txt_laden(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 {Datum}")
+        # self.template_subject = aus_txt_laden(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]")
 
         # ZPD als Standard-Adressat:
         # self.var_zpd = tk.BooleanVar(value=True)
@@ -286,20 +292,21 @@ class KrankmeldungApp(tk.Tk):
         # if zpd_anrede and zpd_anrede in self.prof_vars:
         #     self.prof_vars[zpd_anrede].set(True)
 
-        # Datum Krankheitsbeginn auf heute setzen
-        heute = datetime.datetime.now().strftime("%d.%m.%Y")
-        self.entry_datum.delete(0, tk.END)
-        self.entry_datum.insert(0, heute)
 
-
+        #*2608191431
+        # Stundenplan laden:
+        self.stundenplan_kurse = kurse_wochentag()
 
         self._update_preview()
 
     def save_personal_data_to_db_and_txt(self):
+        email = self.entry_sender_email.get().strip()
         vorname = self.entry_vorname.get().strip()
         nachname = self.entry_nachname.get().strip()
-        datum = self.entry_datum.get().strip()
-        matrikel = self.matrikel_var.get().strip()
+        datum_krank_start = self.entry_datum.get().strip()
+        datum_krank_ende = self.entry_datum_2.get().strip()
+        matrikelnummer = self.matrikel_var.get().strip()
+        meldungstyp = self.meldung_var.get().strip() or "Krankmeldung"
 
         # SQLite speichern
         conn = sqlite3.connect("daten.db")
@@ -307,14 +314,25 @@ class KrankmeldungApp(tk.Tk):
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS krankmeldungen (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT,
                 vorname TEXT,
                 nachname TEXT,
-                datum TEXT,
-                matrikelnummer TEXT
+                matrikelnummer TEXT,
+                datum_krank_start TEXT,
+                datum_krank_ende TEXT,
+                meldungstyp TEXT,
+                empfaenger TEXT
             )
         """)
-        cursor.execute("INSERT INTO krankmeldungen (vorname, nachname, datum, matrikelnummer) VALUES (?, ?, ?, ?)",
-                       (vorname, nachname, datum, matrikel))
+
+        empfaenger = ",".join(
+            anrede
+            for anrede, var in self.empfaenger_ausgewählte.items()
+            if var.get()
+        )
+
+        cursor.execute("INSERT INTO krankmeldungen (email, vorname, nachname, matrikelnummer, datum_krank_start, datum_krank_ende, meldungstyp, empfaenger) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                       (email, vorname, nachname, matrikelnummer, datum_krank_start, datum_krank_ende, meldungstyp, empfaenger))
         conn.commit()
         conn.close()
 
@@ -322,8 +340,14 @@ class KrankmeldungApp(tk.Tk):
         with open("krankmeldung.txt", "w", encoding="utf-8") as f:
             f.write(f"Meine letzte Krankmeldung vom {datetime.datetime.now().strftime('%d.%m.%Y')}\n\n")
             f.write(
-                f"Vorname: {vorname}\nNachname: {nachname}\nDatum erster Krankheitstag: {datum}\nMatrikelnummer: {matrikel}\n")
-
+                f"Vorname: {vorname}\n"
+                f"Nachname: {nachname}\n"
+                f"Matrikelnummer: {matrikelnummer}\n"
+                f"Datum erster Krankheitstag: {datum_krank_start}\n"
+                f"Datum letzter Krankheitstag: {datum_krank_ende}\n"
+                f"{meldungstyp}"
+                # f"Empfänger: {}"
+            )
         messagebox.showinfo("Erfolg", "Daten wurden in Datenbank und Textdatei gespeichert.")
 
     def load_data_from_db(self):
@@ -331,18 +355,33 @@ class KrankmeldungApp(tk.Tk):
             conn = sqlite3.connect("daten.db")
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT vorname, nachname, datum, matrikelnummer, empfaenger_liste FROM krankmeldungen ORDER BY id DESC LIMIT 1")
+                "SELECT email, vorname, nachname, datum_krank_start, datum_krank_ende, matrikelnummer, meldungstyp, empfaenger FROM krankmeldungen ORDER BY id DESC LIMIT 1")
             row = cursor.fetchone()
             conn.close()
             if row:
-                vorname, nachname, datum, matrikel, empfaenger_str = row
+                email, vorname, nachname, datum_krank_start, datum_krank_ende, matrikelnummer, meldungstyp_str, empfaenger_str = row
+                self.entry_sender_email.delete(0, tk.END)  # 2609231049FF DOESNT WORK, raises error.
+                self.entry_sender_email.insert(0, email)   # 2609231049FF DOESNT WORK, raises error.
                 self.entry_vorname.delete(0, tk.END)
                 self.entry_vorname.insert(0, vorname)
                 self.entry_nachname.delete(0, tk.END)
                 self.entry_nachname.insert(0, nachname)
                 self.entry_datum.delete(0, tk.END)
-                self.entry_datum.insert(0, datum)
-                self.matrikel_var.set(matrikel)
+                heute = datetime.datetime.now().strftime("%d.%m.%Y")
+                # Wenn der letzte Eintrag eine Krankmeldung war: heutiges Datum als letzter Krankheitstag eintragen
+                if meldungstyp_str == "Krankmeldung":
+                    self.entry_datum.insert(0, datum_krank_start)
+                    self.entry_datum_2.delete(0, tk.END)
+                    self.entry_datum_2.insert(0, heute)
+                    self.meldung_var.set("Gesundmeldung")
+                elif meldungstyp_str == "Gesundmeldung":
+                    self.entry_datum.insert(0, heute)
+                    self.meldung_var.set("Krankmeldung")
+                # self.entry_datum.insert(0, datum_krank_start)
+                # self.entry_datum_2.insert(0, datum_krank_ende)
+                # self.entry_datum_2.delete(0, tk.END)
+                self.matrikel_var.set(matrikelnummer)
+
 
                 # Alle Empfänger-Dropboxen aus = False
                 for var in self.empfaenger_ausgewählte.values():
@@ -430,14 +469,14 @@ class KrankmeldungApp(tk.Tk):
         # btn_save = ttk.Button(self.top, text="💾", command=self.save_personal_data_to_db_and_txt)
         btn_save.grid(row=0, column=9, sticky="e", padx=10)
 
-        # mit lokal vorgespeicherten persönlichen Daten des Nutzers aus .db-Datei Felder befüllen:
-        self.load_data_from_db()
 
         def on_datum_2_change(event=None):
             text = self.entry_datum_2.get().strip()
             if not text:
                 self.meldung_var.set("Krankmeldung")
-                self._update_preview()
+            else:
+                self.meldung_var.set("Gesundmeldung")
+            self._update_preview()
 
         self.entry_datum_2.bind("<KeyRelease>", on_datum_2_change)
 
@@ -478,6 +517,10 @@ class KrankmeldungApp(tk.Tk):
         self.entry_sender_email.grid(row=1, column=3, columnspan=3, sticky="w", padx=10)
         self.entry_sender_email.insert(0, self.user_email)
         self.entry_sender_email.bind("<KeyRelease>", lambda e: self._update_preview())
+
+        # mit lokal vorgespeicherten persönlichen Daten des Nutzers aus .db-Datei Felder befüllen:
+        self.load_data_from_db()
+
 
     def _build_left_panel(self):
         left = ttk.LabelFrame(self, text="Heute verpasse ich krankheitsbedingt ...", padding=6)
@@ -520,7 +563,7 @@ class KrankmeldungApp(tk.Tk):
             v = tk.BooleanVar()
             if opt == "Berufspraxis.":
                 cb = ttk.Checkbutton(left, text=opt, variable=v, command=on_berufspraxis_toggle)
-            if opt == "Vorlesungszeit.":
+            elif opt == "Vorlesungszeit.":
                 cb = ttk.Checkbutton(left, text=opt, variable=v, command=on_vorlesungszeit_toggle)
             else:
                 cb = ttk.Checkbutton(left, text=opt, variable=v, command=self._update_preview)
@@ -562,11 +605,17 @@ class KrankmeldungApp(tk.Tk):
 
             var = tk.BooleanVar()
             # Verbindung herstellen (korrekt gebundene Lambda-Variable!)
-            var.trace_add('write', lambda *args, a=anrede: self._update_preview())
+            var.trace_add('write', lambda *args, a=anrede: self._update_preview() if hasattr(self, "preview") else None)
             cb = ttk.Checkbutton(scrollable_frame, text=label, variable=var)
             cb.grid(row=row_idx, column=0, sticky="w", pady=2)
             self.empfaenger_ausgewählte[anrede] = var
             row_idx += 1
+
+        # ZPD standardmäßig auswählen
+        for anrede, var in self.empfaenger_ausgewählte.items():
+            if "ZPD" in anrede.upper():    # wenn "ZPD" im Empfänger-Namen drin ist, dann beim Start des Programms ankreuzen.
+                var.set(True)
+                break
 
         # Attribute sichern – dann existiert scrollable_frame global
         self.center_canvas = canvas
@@ -811,7 +860,7 @@ class KrankmeldungApp(tk.Tk):
         ctx = {
             "vorname": vorname or "Vorname",
             "nachname": nachname or "Nachname",
-            "Datum": self.entry_datum.get().strip() or datetime.datetime.now().strftime("%d.%m.%Y"),
+            "Datum": self.entry_datum_2.get().strip() or self.entry_datum.get().strip() or datetime.datetime.now().strftime("%d.%m.%Y"),
             "art": self.meldung_var.get(),
             "bemerkung": self.bemerkung_entry.get("1.0", "end-1c").strip() or "",
             "Vornamen": vorname or "Vorname",
@@ -848,7 +897,7 @@ class KrankmeldungApp(tk.Tk):
         anrede_text = ",\n".join(anreden_auswahl)
         ctx["anrede"] = anrede_text
 
-        body = render_template(self.template_body, ctx)
+        # body = render_template(self.template_body, ctx) # 2609231059FF nicht benötigt, oder?
 
         if anreden_auswahl:
             # Ersten Eintrag großschreiben (nur erstes Wort oder komplett)
@@ -859,6 +908,7 @@ class KrankmeldungApp(tk.Tk):
         ctx["anrede"] = anrede_text
 
         body = render_template(self.template_body, ctx)
+
 
         # Alle ausgewählten Anreden zusammensetzen:
         # anrede_text = "\n".join(anreden_auswahl)
@@ -902,7 +952,14 @@ class KrankmeldungApp(tk.Tk):
         self.preview.yview_moveto(scroll_pos[0])
 
         # Betreff füllen
-        subject_template = load_file_text(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]")
+        subject_template = aus_txt_laden(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 – {Datum}")
+        # subject_template = aus_txt_laden(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]") #2609230928 REMOVED
+        if self.meldung_var.get().strip() == "Gesundmeldung":
+            subject_template = "Gesundmeldung EGOV 2025 – {Datum}"
+        # if self.meldung_var == "Gesundmeldung":
+        #     self.text_subject = self.text_subject.replace("Krank", "Gesund")
+        #
+        #     self.text_subject.insert(tk.END, subject_filled)
         subject_filled = render_template(subject_template, {
             "Datum": ctx.get("Datum"),
             "Vornamen": ctx.get("Vornamen"),
@@ -928,7 +985,7 @@ class KrankmeldungApp(tk.Tk):
     def _load_template_from_file(self):
         path = filedialog.askopenfilename(title="Template (body) auswählen", filetypes=[("Text files","*.txt"),("All files","*.*")])
         if path:
-            self.template_body = load_file_text(path, default=self.template_body)
+            self.template_body = aus_txt_laden(path, default=self.template_body)
             self._update_preview()
 
     def _save_text_as_file(self):
@@ -995,7 +1052,7 @@ class KrankmeldungApp(tk.Tk):
 
 
 
-        subject = load_file_text(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]")
+        subject = aus_txt_laden(TEMPLATE_SUBJECT_PATH, default="Krankmeldung EGOV 2025 {Datum} [{Vornamen} {Nachname}, {Matrikelnummer}]")
         subject_filled = render_template(subject, {
             "Datum": ctx.get("Datum"),
             "Vornamen": ctx.get("Vornamen"),
