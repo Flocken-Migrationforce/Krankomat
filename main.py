@@ -62,7 +62,6 @@ try:
         if not preset_vorname:
             del preset_vorname
 
-
     with open(USER_NACHNAME_PATH, "r", encoding="utf-8") as f:
         preset_nachname = f.read()
         if not preset_nachname:
@@ -92,8 +91,8 @@ try:
         if not preset_bemerkungen:
             del preset_bemerkungen
 
-except:
-    pass
+except Exception as e:
+    print(f"Fehler beim Laden der Standardwerte aus den TXT-Dateien.")
 
 # # ----------------- Lokal gespeicherte Nutzer-Daten laden, wenn vorhanden -----------------
 
@@ -1051,6 +1050,15 @@ class KrankmeldungApp(tk.Tk):
         # else:
         #     self.eau_var.set(False)
 
+        # print(ctx.get("Datum"))
+        # print(datetime.datetime.today().strftime("%d.%m.%Y"))
+        # print(str(ctx.get("Datum")) != str(datetime.datetime.today().strftime("%d.%m.%Y")))
+        print(body)
+        if str(ctx.get("Datum")) != str(datetime.datetime.today().strftime("%d.%m.%Y")):
+            body = body.replace(f" für heute, den {ctx.get('Datum')}", "")
+            body = body.replace("für", "")
+        print(body)
+
         self.preview.delete("1.0", tk.END)
         self.preview.insert(tk.END, body)
         self.preview.yview_moveto(scroll_pos[0])
@@ -1071,9 +1079,12 @@ class KrankmeldungApp(tk.Tk):
             "Matrikelnummer": ctx.get("Matrikelnummer",""),
             "Meldungstyp": self.meldung_var.get().lower().replace("meldung","")
         })
-
+        print(subject_filled)
         if self.meldung_var.get().strip() == "Gesundmeldung":
             subject_filled.replace("krank", "gesund")
+        elif self.meldung_var.get().strip() == "Krankmeldung":
+            pass
+
         # E-Mail-Adressen-Feld und Betreff-Feld aktualisieren
         combined_emails = "; ".join(to_list + cc_list)
 
